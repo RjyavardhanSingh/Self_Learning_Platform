@@ -90,7 +90,7 @@ class QuestionGenerate(BaseModel):
 
 
 class QuestionResponse(BaseModel):
-    id: int
+    id: int | None = None
     text: str
     topic: str | None = None
     difficulty: str | None = None
