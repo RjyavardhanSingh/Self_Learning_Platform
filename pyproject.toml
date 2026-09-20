@@ -18,6 +18,8 @@ dependencies = [
     "boto3>=1.43.97",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.0.54",
+    "alembic>=1.20.0",
+    "psycopg2-binary>=2.9.13",
 ]
 
 [project.scripts]

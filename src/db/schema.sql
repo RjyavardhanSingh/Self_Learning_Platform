@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS materials (
   id TEXT PRIMARY KEY,
-  file_name TEXT NOT NULL,
+  name TEXT NOT NULL,
   kind TEXT NOT NULL,
   full_text TEXT NOT NULL,
   page_count INTEGER NOT NULL,
