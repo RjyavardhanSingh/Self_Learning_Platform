@@ -44,9 +44,7 @@ def _truncate_content(content: str, max_chars: int = 3000000) -> str:
     """
     if len(content) <= max_chars:
         return content
-    logger.warning(
-        f"Truncating material content from {len(content)} to {max_chars} chars"
-    )
+    logger.warning(f"Truncating material content from {len(content)} to {max_chars} chars")
     return content[:max_chars]
 
 
@@ -69,7 +67,7 @@ def _build_prompt(material_content: str, goal: dict, count: int) -> str:
         "2. Test understanding, not just memorization\n"
         "3. Match the difficulty to the learner's level\n"
         "4. Cover different topics from the material\n\n"
-        'Return ONLY a JSON array, no other text:\n'
+        "Return ONLY a JSON array, no other text:\n"
         '[{{"text": "question text", "topic": "topic name"}}]'
     )
 
@@ -82,9 +80,7 @@ async def _call_gemini(prompt: str) -> str:
         config = None
         if model == "gemini-3.8-flash":
             config = types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(
-                    thinking_level=THINKING_LEVEL
-                )
+                thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL)
             )
         response = client.models.generate_content(
             model=model,
