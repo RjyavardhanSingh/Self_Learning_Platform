@@ -1,9 +1,10 @@
-"""Preparing — build practice set from context (LLM-tested placeholder)."""
+"""Preparing — build practice set from context."""
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from api.schemas import QuestionGenerate, QuestionListResponse, QuestionResponse
+from api.schemas import QuestionListResponse, QuestionResponse
 from cache import CacheService, get_cache
+from db.connection import Database, get_db
 from services import question_service
 
 router = APIRouter(prefix="/contexts/{context_id}/questions", tags=["Preparing"])
@@ -12,17 +13,16 @@ router = APIRouter(prefix="/contexts/{context_id}/questions", tags=["Preparing"]
 @router.post("", response_model=QuestionListResponse, summary="Preparing — generate questions")
 async def generate_questions(
     context_id: str,
-    payload: QuestionGenerate,
     cache: CacheService = Depends(get_cache),
+    db: Database = Depends(get_db),
 ):
-    """Step 3 — Preparing: generate practice set. Stores in Dragonfly only."""
-    context_data = cache.get(f"context:{context_id}")
-    if context_data is None:
-        raise HTTPException(status_code=404, detail="Context not found in cache")
-
-    questions = await question_service.generate_questions(
-        cache, context_id, context_data, count=payload.count
-    )
+    """Step 3 — Preparing: generate practice set via Gemini. Stores in Dragonfly."""
+    try:
+        questions = await question_service.generate_questions(cache, db, context_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
     return QuestionListResponse(questions=[QuestionResponse(**q) for q in questions])
 
 
