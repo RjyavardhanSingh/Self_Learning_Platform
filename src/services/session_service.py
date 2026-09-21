@@ -50,7 +50,11 @@ async def submit_answer(
     if skipped:
         score = 0
     else:
-        score = _score_answer(answer_text)
+        reference = _reference_answer(state, question_index)
+        if reference:
+            score = _score_against_reference(reference, answer_text)
+        else:
+            score = _score_answer(answer_text)
     feedback = "Good" if score >= 70 else "Needs work"
 
     answer_record = {
@@ -112,6 +116,57 @@ async def complete_session(
     cache.delete(f"questions:{state['context_id']}")
 
     return state
+
+
+def _reference_answer(state: dict, question_index: int) -> str:
+    """Fetch the perfect reference answer for a question, if the session has one."""
+    questions = state.get("questions") or []
+    if 0 <= question_index < len(questions):
+        answer = (questions[question_index] or {}).get("answer")
+        if isinstance(answer, str) and answer.strip():
+            return answer
+    return ""
+
+
+_STOPWORDS = frozenset(
+    """
+    a an the and or but if then else when while of at by for with about into
+    through during before after above below to from up down in out on off over
+    under again further once here there all any both each few more most other
+    some such no nor not only own same so than too very can will just should
+    now is are was were be been being have has had having do does did doing
+    would could ought i you he she it we they them his her its our their this
+    that these those as it s t
+    """.split()
+)
+
+
+def _keywords(text: str) -> set[str]:
+    """Content-bearing tokens used for answer comparison."""
+    import re
+
+    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    return {t for t in tokens if len(t) >= 3 and t not in _STOPWORDS}
+
+
+def _score_against_reference(reference: str, answer_text: str) -> int:
+    """Score a learner answer by keyword coverage of the reference answer.
+
+    Recall-heavy: a full-marks answer must contain the reference's key
+    facts/terms. Precision contributes a smaller share so concise correct
+    answers score well while keyword-stuffed rambling is tempered.
+    Returns 0-100.
+    """
+    ref_keys = _keywords(reference)
+    if not ref_keys:
+        return _score_answer(answer_text)
+    ans_keys = _keywords(answer_text)
+    if not ans_keys:
+        return 0
+    overlap = ref_keys & ans_keys
+    recall = len(overlap) / len(ref_keys)
+    precision = len(overlap) / len(ans_keys)
+    return max(0, min(100, round(100 * (0.8 * recall + 0.2 * precision))))
 
 
 def _score_answer(answer_text: str) -> int:

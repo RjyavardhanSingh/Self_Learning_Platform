@@ -16,7 +16,7 @@ async def generate_questions(
     cache: CacheService = Depends(get_cache),
     db: Database = Depends(get_db),
 ):
-    """Step 3 — Preparing: generate practice set via Gemini. Stores in Dragonfly."""
+    """Step 3 — Preparing: generate practice set via OpenRouter. Stores in Dragonfly."""
     try:
         questions = await question_service.generate_questions(cache, db, context_id)
     except ValueError as e:

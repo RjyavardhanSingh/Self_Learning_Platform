@@ -1,0 +1,287 @@
+"""OpenRouter service for question generation."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+
+import httpx
+
+from cache.dragonfly import CacheService
+
+logger = logging.getLogger(__name__)
+
+API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")
+DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "inclusionai/ling-3.0-flash-vl:free")
+# Comma-separated fallback list, e.g. "model-a,model-b"
+MODELS = [m.strip() for m in os.getenv("OPENROUTER_MODELS", DEFAULT_MODEL).split(",") if m.strip()]
+RETRY_DELAYS = [3, 10, 20]
+MAX_INPUT_TOKENS = 800000  # Leave room for prompt template + output
+
+
+def _get_api_key() -> str:
+    """Read OpenRouter API key from env."""
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY is not set. Add it to your .env file.")
+    return api_key
+
+
+def calculate_question_count(word_count: int) -> int:
+    """Dynamic question count based on content length."""
+    if word_count < 2000:
+        return 5
+    elif word_count < 10000:
+        return 10
+    elif word_count < 50000:
+        return 15
+    else:
+        return 20
+
+
+def _truncate_content(content: str, max_chars: int = 3000000) -> str:
+    """Truncate content to stay within token limits.
+
+    Rough estimate: 1 token ≈ 4 chars for English text.
+    800K tokens ≈ 3.2M chars. We use 3M chars to be safe.
+    """
+    if len(content) <= max_chars:
+        return content
+    logger.warning(f"Truncating material content from {len(content)} to {max_chars} chars")
+    return content[:max_chars]
+
+
+def _build_prompt(material_content: str, goal: dict, count: int) -> str:
+    """Build prompt for question + reference-answer generation."""
+    subject = goal.get("subject", "general")
+    target = goal.get("target", "general understanding")
+    level = goal.get("level", "intermediate")
+
+    return (
+        "You are a learning assistant. Generate practice questions "
+        "based on the following material and learning goal.\n\n"
+        f"MATERIAL:\n{material_content}\n\n"
+        f"LEARNING GOAL:\n"
+        f"- Subject: {subject}\n"
+        f"- Target: {target}\n"
+        f"- Level: {level}\n\n"
+        f"Generate {count} questions that:\n"
+        "1. Are directly about the material content (no unrelated questions)\n"
+        "2. Test understanding, not just memorization\n"
+        "3. Match the difficulty to the learner's level\n"
+        "4. Cover different topics from the material\n\n"
+        "For EACH question also write a perfect reference answer: a concise, "
+        "factually correct answer based strictly on the material. The reference "
+        "answer will be used to score the learner's spoken/typed answer, so it "
+        "must contain the key facts, terms, and reasoning a full-marks answer needs.\n\n"
+        "Return ONLY a JSON array, no other text:\n"
+        '[{"text": "question text", "topic": "topic name", '
+        '"answer": "perfect reference answer"}]'
+    )
+
+
+def _normalize_questions(raw: object) -> list[dict]:
+    """Coerce the model's JSON into a uniform question list.
+
+    Guarantees every item has text/topic/answer keys so downstream
+    scoring never breaks on a missing field. Raises ValueError when
+    the payload is unusable (triggers a retry).
+    """
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("Response is not a non-empty list")
+    questions = []
+    for i, item in enumerate(raw):
+        if not isinstance(item, dict) or not str(item.get("text", "")).strip():
+            raise ValueError(f"Question at index {i} has no text")
+        questions.append(
+            {
+                "text": str(item["text"]).strip(),
+                "topic": str(item.get("topic", "") or "").strip(),
+                "answer": str(item.get("answer", "") or "").strip(),
+            }
+        )
+    missing = sum(1 for q in questions if not q["answer"])
+    if missing:
+        logger.warning(f"{missing}/{len(questions)} questions came back without a reference answer")
+    return questions
+
+
+def _build_headers() -> dict:
+    """Build request headers for OpenRouter."""
+    headers = {
+        "Authorization": f"Bearer {_get_api_key()}",
+        "Content-Type": "application/json",
+    }
+    # Optional but recommended by OpenRouter for analytics/rate limits.
+    site_url = os.getenv("OPENROUTER_SITE_URL")
+    app_name = os.getenv("OPENROUTER_APP_NAME")
+    if site_url:
+        headers["HTTP-Referer"] = site_url
+    if app_name:
+        headers["X-Title"] = app_name
+    return headers
+
+
+def _status_code(exc: Exception) -> int | None:
+    """Extract HTTP status code from an httpx error, if present.
+
+    Walks the __cause__/__context__ chain since HTTP errors are
+    re-raised as RuntimeError with the original attached.
+    """
+    seen = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, httpx.HTTPStatusError):
+            return current.response.status_code
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _is_auth_error(exc: Exception) -> bool:
+    """True for key-level failures (bad/revoked key, forbidden).
+
+    Retrying or falling back to other models cannot help these —
+    fail fast instead of sleeping through the retry delays.
+    """
+    return _status_code(exc) in (401, 403)
+
+
+async def _call_model(messages: list[dict], model: str) -> dict:
+    """Call OpenRouter chat completions for a single model.
+
+    Returns the raw assistant message dict, which includes
+    `content` and (when reasoning is enabled) `reasoning_details`.
+    """
+    payload = {
+        "model": model,
+        "messages": messages,
+        "reasoning": {"enabled": True},
+    }
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        try:
+            resp = await client.post(API_URL, headers=_build_headers(), json=payload)
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 401:
+                raise RuntimeError(
+                    "OpenRouter rejected the API key (401 Unauthorized). "
+                    "Check that OPENROUTER_API_KEY in your .env is a valid key "
+                    "from https://openrouter.ai/keys, then restart the server "
+                    "(a running server does not pick up .env changes)."
+                ) from e
+            if status == 402:
+                raise RuntimeError(
+                    "OpenRouter refused the request (402 Payment Required). "
+                    "The key is valid but has no credits / free-tier allowance left."
+                ) from e
+            raise
+        data = resp.json()
+    try:
+        return data["choices"][0]["message"]
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Unexpected OpenRouter response shape: {data}") from e
+
+
+async def _call_openrouter(prompt: str) -> str:
+    """Call OpenRouter with model fallback.
+
+    Preserves `reasoning_details` on the wire format: if a follow-up
+    turn is ever needed, pass the assistant message back unmodified
+    (content + reasoning_details) before appending the next user message.
+    """
+    messages = [{"role": "user", "content": prompt}]
+    last_error = None
+    for model in MODELS:
+        try:
+            message = await _call_model(messages, model)
+            content = message.get("content")
+            if not content:
+                raise RuntimeError(f"Empty content from model {model}: {message}")
+            return content
+        except Exception as e:
+            if _is_auth_error(e):
+                raise  # key-level failure: other models would fail the same way
+            last_error = e
+            logger.warning(f"OpenRouter model {model} failed: {e}")
+    raise last_error
+
+
+async def continue_with_reasoning(
+    messages: list[dict],
+    follow_up: str,
+    model: str | None = None,
+) -> str:
+    """Continue a reasoning-enabled conversation.
+
+    `messages` must contain the previous assistant message unmodified,
+    including its `reasoning_details` field, e.g.:
+
+        messages = [
+            {"role": "user", "content": original_prompt},
+            {"role": "assistant", "content": msg.get("content"),
+             "reasoning_details": msg.get("reasoning_details")},
+            {"role": "user", "content": follow_up},
+        ]
+    """
+    target_model = model or (MODELS[0] if MODELS else DEFAULT_MODEL)
+    continued = [*messages, {"role": "user", "content": follow_up}]
+    message = await _call_model(continued, target_model)
+    content = message.get("content")
+    if not content:
+        raise RuntimeError(f"Empty content from model {target_model}")
+    return content
+
+
+async def generate_questions(
+    cache: CacheService,
+    context_id: str,
+    material_content: str,
+    goal: dict,
+    word_count: int,
+) -> list[dict]:
+    """Generate questions using OpenRouter with retry logic.
+
+    Checks response cache first to avoid re-generation.
+    """
+    cache_key = f"openrouter_response:{context_id}"
+    # Back-compat: fall back to the old Gemini cache key if present.
+    cached = cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")
+    if cached is not None:
+        logger.info(f"OpenRouter cache hit for context {context_id}")
+        return cached
+
+    count = calculate_question_count(word_count)
+    truncated_content = _truncate_content(material_content)
+    prompt = _build_prompt(truncated_content, goal, count)
+
+    last_error = None
+    for delay in RETRY_DELAYS:
+        try:
+            response_text = await _call_openrouter(prompt)
+            # Strip markdown code fences if present
+            cleaned = response_text.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("\n", 1)[1]
+            if cleaned.endswith("```"):
+                cleaned = cleaned.rsplit("```", 1)[0]
+            cleaned = cleaned.strip()
+
+            questions = _normalize_questions(json.loads(cleaned))
+
+            cache.set(cache_key, questions, ttl=86400)
+            return questions
+
+        except Exception as e:
+            if _is_auth_error(e):
+                logger.error(f"OpenRouter auth failed: {e}")
+                raise
+            last_error = e
+            logger.warning(f"OpenRouter call failed: {e}, retrying in {delay}s")
+            await asyncio.sleep(delay)
+
+    logger.error(f"OpenRouter failed after all retries: {last_error}")
+    raise RuntimeError("Something went wrong, try again")

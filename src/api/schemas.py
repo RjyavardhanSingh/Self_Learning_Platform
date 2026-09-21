@@ -94,6 +94,7 @@ class QuestionResponse(BaseModel):
     text: str
     topic: str | None = None
     difficulty: str | None = None
+    answer: str | None = None  # perfect reference answer (shown in Results, used for scoring)
 
 
 class QuestionListResponse(BaseModel):

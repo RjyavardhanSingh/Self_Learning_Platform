@@ -6,7 +6,7 @@ import logging
 
 from cache.dragonfly import CacheService
 from db.connection import Database
-from services.gemini_service import generate_questions as gemini_generate
+from services.openrouter_service import generate_questions as openrouter_generate
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ async def generate_questions(
     goal = context_data.get("goal", {})
     word_count = context_data.get("stats", {}).get("word_count", 0)
 
-    questions = await gemini_generate(cache, context_id, material_content, goal, word_count)
+    questions = await openrouter_generate(cache, context_id, material_content, goal, word_count)
 
     cache.set(f"questions:{context_id}", questions, ttl=86400)
     return questions
