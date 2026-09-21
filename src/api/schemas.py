@@ -94,7 +94,13 @@ class QuestionResponse(BaseModel):
     text: str
     topic: str | None = None
     difficulty: str | None = None
-    answer: str | None = None  # perfect reference answer (shown in Results, used for scoring)
+    target_concepts: list[str] = []
+    required_relationships: list[str] = []
+    acceptable_alternatives: list[str] = []
+    common_misconceptions: list[str] = []
+    reference_answer: str | None = None
+    scoring_rubric: dict | None = None
+    source_citations: list[str] = []
 
 
 class QuestionListResponse(BaseModel):
@@ -128,7 +134,10 @@ class AnswerSubmit(BaseModel):
 class AnswerResponse(BaseModel):
     question_index: int
     score: int = Field(ge=0, le=100)
-    feedback: str  # "Got it" | "Needs work"
+    feedback: str
+    concept_coverage: list[str] = []
+    concepts_missed: list[str] = []
+    misconceptions_found: list[str] = []
 
 
 # ---------------------------------------------------------------------------

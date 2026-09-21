@@ -54,7 +54,7 @@ def _truncate_content(content: str, max_chars: int = 3000000) -> str:
 
 
 def _build_prompt(material_content: str, goal: dict, count: int) -> str:
-    """Build prompt for question + reference-answer generation."""
+    """Build prompt for enriched question + rubric generation."""
     subject = goal.get("subject", "general")
     target = goal.get("target", "general understanding")
     level = goal.get("level", "intermediate")
@@ -72,20 +72,29 @@ def _build_prompt(material_content: str, goal: dict, count: int) -> str:
         "2. Test understanding, not just memorization\n"
         "3. Match the difficulty to the learner's level\n"
         "4. Cover different topics from the material\n\n"
-        "For EACH question also write a perfect reference answer: a concise, "
-        "factually correct answer based strictly on the material. The reference "
-        "answer will be used to score the learner's spoken/typed answer, so it "
-        "must contain the key facts, terms, and reasoning a full-marks answer needs.\n\n"
+        "For EACH question, return a JSON object with these fields:\n"
+        '- "text": the question text\n'
+        '- "topic": the topic/category\n'
+        '- "target_concepts": list of key concepts the answer must cover\n'
+        '- "required_relationships": list of causal/logical relationships the answer must express\n'
+        '- "acceptable_alternatives": list of alternative phrasings that are also correct\n'
+        '- "common_misconceptions": list of typical wrong beliefs about this topic\n'
+        '- "reference_answer": a concise, perfect answer based strictly on the material\n'
+        '- "scoring_rubric": object with "excellent", "good", "needs_work" criteria\n'
+        '- "source_citations": list of page/section references from the material\n\n'
         "Return ONLY a JSON array, no other text:\n"
-        '[{"text": "question text", "topic": "topic name", '
-        '"answer": "perfect reference answer"}]'
+        '[{"text": "...", "topic": "...", "target_concepts": ["..."], '
+        '"required_relationships": ["..."], "acceptable_alternatives": ["..."], '
+        '"common_misconceptions": ["..."], "reference_answer": "...", '
+        '"scoring_rubric": {"excellent": "...", "good": "...", "needs_work": "..."}, '
+        '"source_citations": ["..."]}]'
     )
 
 
 def _normalize_questions(raw: object) -> list[dict]:
     """Coerce the model's JSON into a uniform question list.
 
-    Guarantees every item has text/topic/answer keys so downstream
+    Guarantees every item has all required fields so downstream
     scoring never breaks on a missing field. Raises ValueError when
     the payload is unusable (triggers a retry).
     """
@@ -99,13 +108,38 @@ def _normalize_questions(raw: object) -> list[dict]:
             {
                 "text": str(item["text"]).strip(),
                 "topic": str(item.get("topic", "") or "").strip(),
-                "answer": str(item.get("answer", "") or "").strip(),
+                "target_concepts": _ensure_list(item.get("target_concepts")),
+                "required_relationships": _ensure_list(item.get("required_relationships")),
+                "acceptable_alternatives": _ensure_list(item.get("acceptable_alternatives")),
+                "common_misconceptions": _ensure_list(item.get("common_misconceptions")),
+                "reference_answer": str(item.get("reference_answer", "") or "").strip(),
+                "scoring_rubric": _ensure_rubric(item.get("scoring_rubric")),
+                "source_citations": _ensure_list(item.get("source_citations")),
             }
         )
-    missing = sum(1 for q in questions if not q["answer"])
+    missing = sum(1 for q in questions if not q["reference_answer"])
     if missing:
         logger.warning(f"{missing}/{len(questions)} questions came back without a reference answer")
     return questions
+
+
+def _ensure_list(value: object) -> list[str]:
+    """Coerce a value to a list of strings."""
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return []
+
+
+def _ensure_rubric(value: object) -> dict:
+    """Coerce a value to a scoring rubric dict with required keys."""
+    defaults = {"excellent": "", "good": "", "needs_work": ""}
+    if isinstance(value, dict):
+        return {
+            "excellent": str(value.get("excellent", "") or "").strip(),
+            "good": str(value.get("good", "") or "").strip(),
+            "needs_work": str(value.get("needs_work", "") or "").strip(),
+        }
+    return defaults
 
 
 def _build_headers() -> dict:
