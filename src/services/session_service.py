@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -40,8 +41,9 @@ async def submit_answer(
 ) -> dict:
     """Record an answer for a question. Updates session in Dragonfly.
 
+    Uses Gemini for semantic scoring when enriched question data is available.
     Supports skipped=true per PRD §9.3 (scored 0, tagged weak).
-    Returns the answer record with score.
+    Returns the answer record with score and detailed feedback.
     """
     state = cache.get(f"session:{session_id}")
     if state is None:
@@ -49,19 +51,34 @@ async def submit_answer(
 
     if skipped:
         score = 0
+        feedback = "Skipped"
+        concept_coverage = []
+        concepts_missed = []
+        misconceptions_found = []
     else:
-        reference = _reference_answer(state, question_index)
-        if reference:
-            score = _score_against_reference(reference, answer_text)
+        question = _get_question(state, question_index)
+        if question and question.get("reference_answer"):
+            result = await _score_with_gemini(question, answer_text)
+            score = result["score"]
+            feedback = result["feedback"]
+            concept_coverage = result["concept_coverage"]
+            concepts_missed = result["concepts_missed"]
+            misconceptions_found = result["misconceptions_found"]
         else:
             score = _score_answer(answer_text)
-    feedback = "Good" if score >= 70 else "Needs work"
+            feedback = "Good" if score >= 70 else "Needs work"
+            concept_coverage = []
+            concepts_missed = []
+            misconceptions_found = []
 
     answer_record = {
         "question_index": question_index,
         "answer_text": answer_text,
         "score": score,
         "feedback": feedback,
+        "concept_coverage": concept_coverage,
+        "concepts_missed": concepts_missed,
+        "misconceptions_found": misconceptions_found,
     }
     if skipped:
         answer_record["skipped"] = True
@@ -104,9 +121,9 @@ async def complete_session(
            VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6, $7, $8)""",
         state["id"],
         state["context_id"],
-        __import__("json").dumps(state["questions"]),
-        __import__("json").dumps(state["answers"]),
-        __import__("json").dumps(state["scores"]),
+        json.dumps(state["questions"]),
+        json.dumps(state["answers"]),
+        json.dumps(state["scores"]),
         readiness,
         state["started_at"],
         state["completed_at"],
@@ -118,14 +135,76 @@ async def complete_session(
     return state
 
 
-def _reference_answer(state: dict, question_index: int) -> str:
-    """Fetch the perfect reference answer for a question, if the session has one."""
+def _get_question(state: dict, question_index: int) -> dict | None:
+    """Fetch the question dict for a given index."""
     questions = state.get("questions") or []
     if 0 <= question_index < len(questions):
-        answer = (questions[question_index] or {}).get("answer")
-        if isinstance(answer, str) and answer.strip():
-            return answer
-    return ""
+        return questions[question_index]
+    return None
+
+
+async def _score_with_gemini(question: dict, answer_text: str) -> dict:
+    """Use OpenRouter to score answer against enriched rubric.
+
+    Returns dict with score, feedback, concept_coverage, concepts_missed,
+    misconceptions_found.
+    """
+    from services.openrouter_service import _call_openrouter
+
+    prompt = (
+        "You are an educational scoring assistant. Score the student's answer "
+        "against the question's rubric and reference answer.\n\n"
+        f"QUESTION: {question['text']}\n\n"
+        f"REFERENCE ANSWER: {question.get('reference_answer', '')}\n\n"
+        f"SCORING RUBRIC:\n"
+        f"- Excellent (90-100): {question.get('scoring_rubric', {}).get('excellent', '')}\n"
+        f"- Good (70-89): {question.get('scoring_rubric', {}).get('good', '')}\n"
+        f"- Needs work (<70): {question.get('scoring_rubric', {}).get('needs_work', '')}\n\n"
+        f"TARGET CONCEPTS: {json.dumps(question.get('target_concepts', []))}\n\n"
+        f"REQUIRED RELATIONSHIPS: {json.dumps(question.get('required_relationships', []))}\n\n"
+        f"COMMON MISCONCEPTIONS: {json.dumps(question.get('common_misconceptions', []))}\n\n"
+        f"STUDENT ANSWER: {answer_text}\n\n"
+        "Return ONLY a JSON object:\n"
+        '{"score": 0-100, "feedback": "detailed feedback", '
+        '"concept_coverage": ["concept1"], "concepts_missed": ["concept2"], '
+        '"misconceptions_found": ["misconception1"]}'
+    )
+
+    try:
+        response_text = await _call_openrouter(prompt)
+        cleaned = response_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned.rsplit("```", 1)[0]
+        cleaned = cleaned.strip()
+
+        result = json.loads(cleaned)
+        score_val = int(result.get("score", 0))
+        return {
+            "score": max(0, min(100, score_val)),
+            "feedback": str(result.get("feedback", "Good" if score_val >= 70 else "Needs work")),
+            "concept_coverage": _ensure_list(result.get("concept_coverage")),
+            "concepts_missed": _ensure_list(result.get("concepts_missed")),
+            "misconceptions_found": _ensure_list(result.get("misconceptions_found")),
+        }
+    except Exception:
+        ref = question.get("reference_answer", "")
+        score = _score_against_reference(ref, answer_text) if ref else _score_answer(answer_text)
+        return {
+            "score": score,
+            "feedback": "Good" if score >= 70 else "Needs work",
+            "concept_coverage": [],
+            "concepts_missed": [],
+            "misconceptions_found": [],
+        }
+
+
+def _ensure_list(value: object) -> list[str]:
+    """Coerce a value to a list of strings."""
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return []
 
 
 _STOPWORDS = frozenset(
@@ -152,9 +231,7 @@ def _keywords(text: str) -> set[str]:
 def _score_against_reference(reference: str, answer_text: str) -> int:
     """Score a learner answer by keyword coverage of the reference answer.
 
-    Recall-heavy: a full-marks answer must contain the reference's key
-    facts/terms. Precision contributes a smaller share so concise correct
-    answers score well while keyword-stuffed rambling is tempered.
+    Fallback scoring when Gemini is unavailable.
     Returns 0-100.
     """
     ref_keys = _keywords(reference)
