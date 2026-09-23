@@ -6,14 +6,15 @@ Flow is one loop with 6 steps: **Upload → Goal → Preparing → Practice → 
 
 ## What's Done
 
-- **Material upload** — text/Markdown via `POST /materials` (JSON), PDF via `POST /materials/upload` (multipart, stored in Neon Object Storage). Metadata in Postgres, presigned download via `GET /materials/{id}/download`.
-- **Goal → context** — `POST /contexts` combines materials + learning goal (subject, target, level, deadline, language) into a `LearningContext`. Persisted in Postgres (`contexts`, `context_materials`), cached in Dragonfly for fast reads.
-- **Question generation (LLM)** — `POST /contexts/{id}/questions` calls OpenRouter (`src/services/openrouter_service.py`) with retry + model fallback + response cache. Count is dynamic from word count (5 / 10 / 15 / 20). Each question is enriched: `text, topic, target_concepts, required_relationships, acceptable_alternatives, common_misconceptions, reference_answer, scoring_rubric {excellent, good, needs_work}, source_citations`. Cached in Dragonfly only.
-- **Practice sessions** — `POST /sessions` (from prepared questions), `GET /sessions/{id}`, `POST /sessions/{id}/answer` (typed answers for now, `skipped: true` supported per PRD §9.3). Scoring is LLM rubric-based (`_score_with_gemini` in `src/services/session_service.py`) with keyword-overlap fallback when the LLM is unavailable.
-- **Results** — `POST /sessions/{id}/complete` computes readiness % (average score), persists session to Postgres, clears cache. `GET /sessions/{id}/results` fetches from cache → DB fallback. Returns full questions/answers/scores (no Strong/Weak summary yet).
-- **Retest (basic)** — `POST /sessions/{id}/retest` creates a new session sliced from the parent's questions (`count` default 5). Not yet filtered by weak topics.
+- **Versioned production API** — canonical endpoints are under `/v1`; the old unversioned paths remain as deprecated compatibility aliases during migration. Requests receive an `X-Request-ID` and the API version header. Liveness and dependency readiness probes are available at `/health/live` and `/health/ready`.
+- **Material upload** — text/Markdown via `POST /v1/materials` (JSON), PDF via `POST /v1/materials/upload` (multipart, stored in Neon Object Storage). Metadata in Postgres, presigned download via `GET /v1/materials/{id}/download`.
+- **Goal → context** — `POST /v1/contexts` combines materials + learning goal (subject, target, level, deadline, language) into a `LearningContext`. Persisted in Postgres (`contexts`, `context_materials`), cached in Dragonfly for fast reads.
+- **Question generation (LLM)** — `POST /v1/contexts/{id}/questions` calls OpenRouter (`src/services/openrouter_service.py`) with retry + model fallback + response cache. An optional `{ "count": 5 }` body can override the dynamic count. Each question is enriched: `text, topic, target_concepts, required_relationships, acceptable_alternatives, common_misconceptions, reference_answer, scoring_rubric {excellent, good, needs_work}, source_citations`. Reference answers and rubrics are server-only and are excluded from API responses. Cached in Dragonfly only.
+- **Practice sessions** — `POST /v1/sessions` (from prepared questions), `GET /v1/sessions/{id}`, `POST /v1/sessions/{id}/answer` (typed answers for now, `skipped: true` supported per PRD §9.3). Answers must be submitted one question at a time; completed sessions and invalid ordering return `409`. Scoring is LLM rubric-based (`_score_with_gemini` in `src/services/session_service.py`) with keyword-overlap fallback when the LLM is unavailable.
+- **Results** — `POST /v1/sessions/{id}/complete` computes readiness % (average score), persists session to Postgres, clears cache. `GET /v1/sessions/{id}/results` fetches from cache → DB fallback. Returns full questions/answers/scores (no Strong/Weak summary yet).
+- **Retest (basic)** — `POST /v1/sessions/{id}/retest` creates a new session sliced from the completed parent's questions (`count` default 5). Not yet filtered by weak topics.
 - **Infra** — FastAPI (`src/api/app.py`), Neon PostgreSQL + `src/db/schema.sql` (materials, contexts, context_materials, sessions), Alembic migrations in `src/migrations/`, Dragonfly (Redis-compatible) cache, Docker Compose for local Dragonfly, GitHub Actions CI (ruff + pytest).
-- **Tests** — 43 passing (`tests/test_context.py`, `test_goal.py`, `test_ingestion.py`, `test_pdf.py`, `test_reference_answers.py`).
+- **Tests** — 47 passing (`tests/test_context.py`, `test_goal.py`, `test_ingestion.py`, `test_pdf.py`, `test_reference_answers.py`, `test_api_versioning.py`).
 
 ## What's Not Done
 
@@ -87,7 +88,10 @@ OPENROUTER_API_KEY=sk-or-...
 # OPENROUTER_MODEL=inclusionai/ling-3.0-flash-vl:free
 # OPENROUTER_MODELS=model-a,model-b  (fallback list)
 # OPENROUTER_API_URL=https://openrouter.ai/api/v1/chat/completions
-# OPENROUTER_SITE_URL= / OPENROUTER_APP_NAME= (analytics headers)
+# Optional production HTTP settings
+CORS_ORIGINS=https://app.example.com
+TRUSTED_HOSTS=api.example.com
+MAX_PDF_UPLOAD_BYTES=26214400
 ```
 
 ## Running
@@ -106,21 +110,22 @@ Swagger docs at `http://localhost:8000/docs`.
 
 | Method | Path | Step | Description |
 |---|---|---|---|
-| `POST` | `/materials` | Upload | Upload text/markdown (JSON body) |
-| `POST` | `/materials/upload` | Upload | Upload PDF file (multipart, alias) |
-| `GET` | `/materials/{id}` | Upload | Fetch material metadata |
-| `GET` | `/materials/{id}/download` | Upload | Presigned download URL (PDFs only) |
-| `POST` | `/contexts` | Goal | Build context from materials + goal |
-| `GET` | `/contexts/{id}` | Goal | Fetch context (cache → DB) |
-| `POST` | `/contexts/{id}/questions` | Preparing | Generate practice set (LLM) |
-| `GET` | `/contexts/{id}/questions` | Preparing | Fetch cached questions |
-| `POST` | `/sessions` | Practice | Start session (`{context_id}`) |
-| `GET` | `/sessions/{id}` | Practice | Get session state |
-| `POST` | `/sessions/{id}/answer` | Practice | Submit answer (`question_index, answer_text, skipped`) |
-| `POST` | `/sessions/{id}/complete` | Results | Complete session, readiness %, persist to DB |
-| `GET` | `/sessions/{id}/results` | Results | Fetch results (cache → DB) |
-| `POST` | `/sessions/{id}/retest` | Retest | New session sliced from parent (`{count}`) |
-| `GET` | `/health` | — | Health check |
+| `POST` | `/v1/materials` | Upload | Upload text/markdown (JSON body) |
+| `POST` | `/v1/materials/upload` | Upload | Upload PDF file (multipart, alias) |
+| `GET` | `/v1/materials/{id}` | Upload | Fetch material metadata |
+| `GET` | `/v1/materials/{id}/download` | Upload | Presigned download URL (PDFs only) |
+| `POST` | `/v1/contexts` | Goal | Build context from materials + goal |
+| `GET` | `/v1/contexts/{id}` | Goal | Fetch context (cache → DB) |
+| `POST` | `/v1/contexts/{id}/questions` | Preparing | Generate practice set (LLM), optional `{count}` |
+| `GET` | `/v1/contexts/{id}/questions` | Preparing | Fetch cached questions |
+| `POST` | `/v1/sessions` | Practice | Start session (`{context_id}`) |
+| `GET` | `/v1/sessions/{id}` | Practice | Get session state |
+| `POST` | `/v1/sessions/{id}/answer` | Practice | Submit answer one question at a time |
+| `POST` | `/v1/sessions/{id}/complete` | Results | Complete session, readiness %, persist to DB |
+| `GET` | `/v1/sessions/{id}/results` | Results | Fetch results (cache → DB) |
+| `POST` | `/v1/sessions/{id}/retest` | Retest | New session from completed parent (`{count}`) |
+| `GET` | `/health` | — | Liveness check |
+| `GET` | `/health/ready` | — | Database/cache readiness probe |
 
 ## Testing
 

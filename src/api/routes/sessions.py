@@ -15,6 +15,7 @@ from api.schemas import (
 from cache import CacheService, get_cache
 from db.connection import Database, get_db
 from services import question_service, session_service
+from services.session_service import InvalidAnswerError, SessionConflictError, SessionNotFoundError
 
 router = APIRouter(prefix="/sessions")
 
@@ -80,8 +81,12 @@ async def submit_answer(
         record = await session_service.submit_answer(
             cache, session_id, payload.question_index, payload.answer_text, skipped=payload.skipped
         )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except SessionConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except InvalidAnswerError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return AnswerResponse(**record)
 
 
@@ -99,8 +104,10 @@ async def complete_session(
     """Step 5 — Results: compute readiness, persist to DB, clear cache."""
     try:
         state = await session_service.complete_session(cache, db, session_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except SessionConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     return SessionCompleteResponse(
         id=state["id"],
         readiness_score=state["readiness_score"],
@@ -172,6 +179,10 @@ async def create_retest(
         row = await db.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
         if row is None:
             raise HTTPException(status_code=404, detail="Parent session not found")
+        if not row["completed_at"]:
+            raise HTTPException(
+                status_code=409, detail="Complete the parent session before retesting"
+            )
         import json as _json
 
         def _load(v):
@@ -182,6 +193,8 @@ async def create_retest(
             "context_id": row["context_id"],
             "questions": _load(row["questions"]),
         }
+    if parent.get("status", "completed") != "completed":
+        raise HTTPException(status_code=409, detail="Complete the parent session before retesting")
     # Retest: slice parent questions (LLM will filter weak topics later)
     context_id = parent["context_id"]
     questions = parent.get("questions") or await question_service.get_questions(cache, context_id)

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+from pathlib import Path
 
 from db.connection import Database
 from ingestion import extract_path, extract_text
@@ -15,21 +17,29 @@ BUCKET = os.getenv("NEON_STORAGE_BUCKET", "materials")
 
 async def upload_pdf(db: Database, filename: str, data: bytes) -> SourceDocument:
     """Store PDF in object storage, extract text, save metadata to DB."""
-    import hashlib
-
-    content_hash = hashlib.sha1(data).hexdigest()[:12]
-    object_key = f"pdfs/{content_hash}/{filename}"
+    safe_filename = Path(filename).name
+    if not safe_filename.lower().endswith(".pdf"):
+        raise ValueError("Expected a PDF file")
+    content_hash = hashlib.sha256(data).hexdigest()[:16]
+    object_key = f"pdfs/{content_hash}/{safe_filename}"
 
     s3_upload(BUCKET, object_key, data, content_type="application/pdf")
 
-    doc = extract_path(_write_temp(data, filename))
+    temp_path = _write_temp(data, safe_filename)
+    try:
+        doc = extract_path(temp_path)
+    finally:
+        try:
+            os.unlink(temp_path)
+        except FileNotFoundError:
+            pass
 
     await db.execute(
         """INSERT INTO materials (id, name, kind, full_text, page_count, word_count, object_key)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (id) DO NOTHING""",
         doc.source_id,
-        filename,
+        safe_filename,
         doc.kind.value,
         doc.full_text,
         doc.page_count,

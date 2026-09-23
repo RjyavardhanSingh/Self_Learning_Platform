@@ -276,21 +276,22 @@ async def generate_questions(
     material_content: str,
     goal: dict,
     word_count: int,
+    count: int | None = None,
 ) -> list[dict]:
     """Generate questions using OpenRouter with retry logic.
 
     Checks response cache first to avoid re-generation.
     """
-    cache_key = f"openrouter_response:{context_id}"
+    requested_count = count or calculate_question_count(word_count)
+    cache_key = f"openrouter_response:{context_id}:{requested_count}"
     # Back-compat: fall back to the old Gemini cache key if present.
     cached = cache.get(cache_key) or cache.get(f"gemini_response:{context_id}")
     if cached is not None:
         logger.info(f"OpenRouter cache hit for context {context_id}")
         return cached
 
-    count = calculate_question_count(word_count)
     truncated_content = _truncate_content(material_content)
-    prompt = _build_prompt(truncated_content, goal, count)
+    prompt = _build_prompt(truncated_content, goal, requested_count)
 
     last_error = None
     for delay in RETRY_DELAYS:

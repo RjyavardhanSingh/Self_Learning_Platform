@@ -30,10 +30,16 @@ class MaterialResponse(BaseModel):
     word_count: int
 
 
+class MaterialDownloadResponse(BaseModel):
+    """Short-lived URL for downloading a stored source file."""
+
+    url: str
+
+
 # ---------------------------------------------------------------------------
 # 1. Upload — add study material (PDF / text / Markdown)
-# Single unified entry: POST /materials handles both JSON text and multipart PDF.
-# The duplicate POST /materials/upload is kept as alias for backward compat.
+# Single unified entry: POST /v1/materials handles both JSON text and multipart PDF.
+# The duplicate POST /v1/materials/upload is kept as an explicit alias.
 # ---------------------------------------------------------------------------
 
 
@@ -47,7 +53,7 @@ class MaterialUpload(BaseModel):
 
 # ---------------------------------------------------------------------------
 # 2. Goal — what the learner wants to achieve
-# POST /contexts
+# POST /v1/contexts
 # ---------------------------------------------------------------------------
 
 
@@ -80,7 +86,7 @@ class ContextResponse(BaseModel):
 
 # ---------------------------------------------------------------------------
 # 3. Preparing — build practice set from context
-# POST /contexts/{id}/questions  +  GET /contexts/{id}/questions
+# POST /v1/contexts/{id}/questions  +  GET /v1/contexts/{id}/questions
 # LLM-tested first: placeholder now, pluggable generator later.
 # ---------------------------------------------------------------------------
 
@@ -94,13 +100,15 @@ class QuestionResponse(BaseModel):
     text: str
     topic: str | None = None
     difficulty: str | None = None
-    target_concepts: list[str] = []
-    required_relationships: list[str] = []
-    acceptable_alternatives: list[str] = []
-    common_misconceptions: list[str] = []
-    reference_answer: str | None = None
-    scoring_rubric: dict | None = None
-    source_citations: list[str] = []
+    target_concepts: list[str] = Field(default_factory=list)
+    required_relationships: list[str] = Field(default_factory=list)
+    acceptable_alternatives: list[str] = Field(default_factory=list)
+    common_misconceptions: list[str] = Field(default_factory=list)
+    # Kept on the server-side model for scoring compatibility, but never
+    # serialized into an API response. This prevents answer-key leakage.
+    reference_answer: str | None = Field(default=None, exclude=True)
+    scoring_rubric: dict | None = Field(default=None, exclude=True)
+    source_citations: list[str] = Field(default_factory=list)
 
 
 class QuestionListResponse(BaseModel):
@@ -109,7 +117,7 @@ class QuestionListResponse(BaseModel):
 
 # ---------------------------------------------------------------------------
 # 4. Practice — session lifecycle (one question at a time)
-# POST /sessions  +  GET /sessions/{id}  +  POST /sessions/{id}/answer
+# POST /v1/sessions  +  GET /v1/sessions/{id}  +  POST /v1/sessions/{id}/answer
 # ---------------------------------------------------------------------------
 
 
@@ -135,9 +143,9 @@ class AnswerResponse(BaseModel):
     question_index: int
     score: int = Field(ge=0, le=100)
     feedback: str
-    concept_coverage: list[str] = []
-    concepts_missed: list[str] = []
-    misconceptions_found: list[str] = []
+    concept_coverage: list[str] = Field(default_factory=list)
+    concepts_missed: list[str] = Field(default_factory=list)
+    misconceptions_found: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
