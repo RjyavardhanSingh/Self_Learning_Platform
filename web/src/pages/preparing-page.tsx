@@ -56,15 +56,7 @@ export function PreparingPage() {
       <div className="mx-auto max-w-5xl">
         <StepHeader eyebrow="Step 3 of 6 · Preparing" title="Let’s make this yours." description="We’ll turn your material and goal into a focused set of practice questions." />
         <div className="mt-8"><ProgressDots current={3} /></div>
-        <div className="mt-10 grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-          <Card className="border-zinc-200 bg-white text-zinc-950">
-            <CardContent className="p-6 sm:p-7">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500"><Sparkles className="size-3.5" /> Your practice brief</div>
-              <p className="mt-5 text-2xl font-semibold tracking-[-0.04em]">{context.subject}</p>
-              <p className="mt-3 text-sm leading-6 text-zinc-500">{context.target}</p>
-              <div className="mt-8 grid grid-cols-2 gap-3 border-t border-zinc-200 pt-5"><div><p className="text-2xl font-semibold">{context.stats.word_count.toLocaleString()}</p><p className="mt-1 text-xs text-zinc-500">source words</p></div><div><p className="text-2xl font-semibold">{context.stats.reading_minutes} min</p><p className="mt-1 text-xs text-zinc-500">estimated read</p></div></div>
-            </CardContent>
-          </Card>
+        <div className="mt-10 max-w-3xl">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-4"><div><CardTitle>Practice questions</CardTitle><CardDescription className="mt-1">Five questions is a great place to start.</CardDescription></div><Badge>{visibleQuestions.length || '—'} ready</Badge></div>
