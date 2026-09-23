@@ -18,12 +18,19 @@
 }
 
 * {
+  box-sizing: border-box;
   border-color: #e4e4e7;
+}
+
+html {
+  min-width: 320px;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  overflow-x: hidden;
 }
 
 button,

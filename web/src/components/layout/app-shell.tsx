@@ -5,7 +5,6 @@ import {
   Check,
   CircleHelp,
   FileText,
-  LayoutDashboard,
   LoaderCircle,
   Menu,
   Sparkles,
@@ -22,7 +21,6 @@ import { cn } from '../../lib/utils'
 import { Button } from '../ui/button'
 
 const steps = [
-  { label: 'Overview', path: '/', icon: LayoutDashboard },
   { label: 'Upload material', path: '/upload', icon: Upload },
   { label: 'Set your goal', path: '/goal', icon: Target },
   { label: 'Practice', path: '/practice', icon: BookOpen },
@@ -48,7 +46,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const { data: health, isLoading } = useQuery({ queryKey: ['health'], queryFn: api.health, retry: false })
 
   return (
-    <aside className="flex h-full w-full flex-col bg-zinc-950 px-4 py-5 text-white lg:w-[252px] lg:shrink-0 lg:px-5">
+    <aside className="flex h-full w-full flex-col bg-zinc-950 px-4 py-4 text-white lg:w-[240px] lg:shrink-0 lg:px-5 lg:py-5 xl:w-[252px]">
       <div className="flex items-center justify-between">
         <Brand />
         {onClose ? (
@@ -114,28 +112,30 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-[#f7f7f5] text-zinc-950">
-      <div className="flex min-h-screen">
+    <div className="h-dvh overflow-hidden bg-[#f7f7f5] text-zinc-950">
+      <div className="flex h-dvh">
         <div className="hidden lg:block">
           <Sidebar />
         </div>
         {mobileOpen ? (
           <div className="fixed inset-0 z-50 flex lg:hidden">
             <div className="absolute inset-0 bg-zinc-950/40" onClick={() => setMobileOpen(false)} />
-            <div className="relative h-full w-[285px] shadow-2xl">
+            <div className="relative h-full w-[285px] max-w-[calc(100vw-3rem)] shadow-2xl">
               <Sidebar onClose={() => setMobileOpen(false)} />
             </div>
           </div>
         ) : null}
-        <main className="min-w-0 flex-1">
-          <header className="flex h-16 items-center justify-between border-b border-zinc-200/80 bg-white/80 px-5 backdrop-blur lg:hidden">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200/80 bg-white/80 px-4 backdrop-blur sm:px-5 lg:hidden">
             <Brand />
             <Button variant="secondary" size="icon" onClick={() => setMobileOpen(true)}>
               <Menu className="size-5" />
               <span className="sr-only">Open navigation</span>
             </Button>
           </header>
-          <div className="mx-auto max-w-[1440px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10 xl:px-12">{children}</div>
+          </div>
         </main>
       </div>
     </div>
@@ -147,7 +147,7 @@ export function StepHeader({ eyebrow, title, description }: { eyebrow: string; t
     <div className="max-w-2xl">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">{eyebrow}</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-zinc-950 sm:text-4xl">{title}</h1>
-      <p className="mt-3 text-base leading-7 text-zinc-500">{description}</p>
+      <p className="mt-3 text-sm leading-6 text-zinc-500 sm:text-base sm:leading-7">{description}</p>
     </div>
   )
 }
@@ -156,7 +156,7 @@ export function ProgressDots({ current }: { current: number }) {
   return (
     <div className="flex items-center gap-2" aria-label={`Step ${current} of 6`}>
       {[1, 2, 3, 4, 5, 6].map((step) => (
-        <span key={step} className={cn('h-1.5 rounded-full transition-all', step <= current ? 'w-8 bg-zinc-950' : 'w-4 bg-zinc-200')} />
+        <span key={step} className={cn('h-1.5 rounded-full transition-all', step <= current ? 'w-6 bg-zinc-950 sm:w-8' : 'w-3 bg-zinc-200 sm:w-4')} />
       ))}
     </div>
   )

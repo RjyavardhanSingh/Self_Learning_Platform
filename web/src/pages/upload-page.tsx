@@ -100,7 +100,7 @@ export function UploadPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto w-full max-w-2xl">
         <StepHeader
           eyebrow="Step 1 of 6 · Upload"
           title="Bring something worth learning."
@@ -108,10 +108,10 @@ export function UploadPage() {
         />
         <div className="mt-8"><ProgressDots current={1} /></div>
 
-        <div className="mt-10 max-w-3xl">
+        <div className="mt-8 w-full sm:mt-10">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
+            <CardHeader className="p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle>Choose your material</CardTitle>
                   <CardDescription className="mt-1">PDF, text, and Markdown are supported.</CardDescription>
@@ -119,8 +119,8 @@ export function UploadPage() {
                 <Badge>{mode === 'text' ? 'Text' : 'PDF'}</Badge>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-zinc-100 p-1">
+            <CardContent className="p-5 pt-0 sm:p-6 sm:pt-0">
+              <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 sm:mb-6 sm:gap-2">
                 {(['text', 'pdf'] as UploadMode[]).map((option) => (
                   <button
                     key={option}
@@ -137,7 +137,7 @@ export function UploadPage() {
               </div>
 
               {mode === 'text' ? (
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                   <div className="space-y-2">
                     <Label htmlFor="material-name">Source name</Label>
                     <Input id="material-name" {...textForm.register('name')} placeholder="biology-notes.md" />
@@ -153,7 +153,7 @@ export function UploadPage() {
                       {...textForm.register('content')}
                       maxLength={50000}
                       placeholder="Paste a chapter, lecture notes, or an article here…"
-                      className="min-h-72"
+                      className="h-40 max-h-[42dvh] min-h-0 resize-y sm:h-52 lg:h-60"
                     />
                     {textForm.formState.errors.content ? <p className="text-xs text-red-600">{textForm.formState.errors.content.message}</p> : null}
                     <button
@@ -173,7 +173,7 @@ export function UploadPage() {
                     onClick={() => fileInput.current?.click()}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files?.[0]) }}
-                    className="flex min-h-72 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-6 text-center transition hover:border-zinc-500 hover:bg-zinc-100"
+                    className="flex h-48 max-h-[42dvh] min-h-0 w-full flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-5 text-center transition hover:border-zinc-500 hover:bg-zinc-100 sm:h-60 sm:px-6"
                   >
                     <span className="grid size-12 place-items-center rounded-2xl bg-white shadow-sm"><UploadCloud className="size-5" /></span>
                     <span className="mt-5 text-sm font-semibold text-zinc-900">Drop your PDF here</span>
@@ -196,7 +196,7 @@ export function UploadPage() {
                   <span><strong>{material.name}</strong> is ready. {material.word_count.toLocaleString()} words found.</span>
                 </div>
               ) : null}
-              <Button className="mt-6 w-full" size="lg" onClick={mode === 'text' ? submitText : uploadPdf} disabled={isUploading || Boolean(material)}>
+              <Button className="mt-5 w-full sm:mt-6" size="lg" onClick={mode === 'text' ? submitText : uploadPdf} disabled={isUploading || Boolean(material)}>
                 {isUploading ? <><LoaderCircle className="size-4 animate-spin" />Uploading…</> : material ? 'Material ready' : 'Use this material'}
                 {!isUploading && !material ? <ArrowRight className="size-4" /> : null}
               </Button>
