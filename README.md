@@ -2,61 +2,58 @@
 
 Upload what you're studying, say what you need to achieve, practice by speaking your answers out loud, then get a clear report on what you know, what's weak, and what to retest.
 
+Flow is one loop with 6 steps: **Upload → Goal → Preparing → Practice → Results → Retest**. See `PRD.md` for product spec.
+
 ## What's Done
 
-- **Material upload** — PDF (stored in Neon Object Storage), text, Markdown
-- **Context builder** — combines uploaded material + learning goal into a `LearningContext`
-- **Dragonfly cache** — context cached in Dragonfly (Redis-compatible) for fast reads
-- **Database** — Neon PostgreSQL with auto-schema on startup (materials, contexts, sessions tables)
-- **Object storage** — Neon Object Storage for PDF files (S3-compatible)
-- **CI** — GitHub Actions workflow for lint (ruff) and tests (pytest) on PRs
-- **API scaffold** — all endpoints wired up, FastAPI app runs
+- **Material upload** — text/Markdown via `POST /materials` (JSON), PDF via `POST /materials/upload` (multipart, stored in Neon Object Storage). Metadata in Postgres, presigned download via `GET /materials/{id}/download`.
+- **Goal → context** — `POST /contexts` combines materials + learning goal (subject, target, level, deadline, language) into a `LearningContext`. Persisted in Postgres (`contexts`, `context_materials`), cached in Dragonfly for fast reads.
+- **Question generation (LLM)** — `POST /contexts/{id}/questions` calls OpenRouter (`src/services/openrouter_service.py`) with retry + model fallback + response cache. Count is dynamic from word count (5 / 10 / 15 / 20). Each question is enriched: `text, topic, target_concepts, required_relationships, acceptable_alternatives, common_misconceptions, reference_answer, scoring_rubric {excellent, good, needs_work}, source_citations`. Cached in Dragonfly only.
+- **Practice sessions** — `POST /sessions` (from prepared questions), `GET /sessions/{id}`, `POST /sessions/{id}/answer` (typed answers for now, `skipped: true` supported per PRD §9.3). Scoring is LLM rubric-based (`_score_with_gemini` in `src/services/session_service.py`) with keyword-overlap fallback when the LLM is unavailable.
+- **Results** — `POST /sessions/{id}/complete` computes readiness % (average score), persists session to Postgres, clears cache. `GET /sessions/{id}/results` fetches from cache → DB fallback. Returns full questions/answers/scores (no Strong/Weak summary yet).
+- **Retest (basic)** — `POST /sessions/{id}/retest` creates a new session sliced from the parent's questions (`count` default 5). Not yet filtered by weak topics.
+- **Infra** — FastAPI (`src/api/app.py`), Neon PostgreSQL + `src/db/schema.sql` (materials, contexts, context_materials, sessions), Alembic migrations in `src/migrations/`, Dragonfly (Redis-compatible) cache, Docker Compose for local Dragonfly, GitHub Actions CI (ruff + pytest).
+- **Tests** — 43 passing (`tests/test_context.py`, `test_goal.py`, `test_ingestion.py`, `test_pdf.py`, `test_reference_answers.py`).
 
 ## What's Not Done
 
-- **Question generation** — endpoint exists but no LLM integration (returns hardcoded placeholder questions)
-- **Session flow** — endpoints exist (create, answer, complete) but:
-  - Scoring is placeholder (answer length, not understanding)
-  - No real evaluation logic
-  - No weakness analysis
-  - No misconception detection
-- **LLM integration** — no actual LLM calls anywhere
-- **STT (Speech-to-Text)** — answers are typed for now, voice input is Phase 1 goal
-- **Weakness report / results screen** — session completes but no analysis
-- **Retest flow** — not implemented
-- **Frontend** — API only, no UI
-- **Gap detection / research** — no source filling from trusted sources
-- **Adaptive questioning** — no follow-up or difficulty adjustment
-- **Citations** — no source attribution on questions
-- **TTS (Text-to-Speech)** — questions are text only
+- **Results analysis** — no Strong / Needs work / Misconceptions summary (PRD §10); raw questions/answers/scores only.
+- **Smart retest** — currently slices parent questions; no weak-topic filtering via LLM.
+- **STT (Speech-to-Text)** — answers are typed; voice input is a Phase 1 goal.
+- **TTS (Text-to-Speech)** — questions are text only.
+- **Gap detection / research** — no filling missing knowledge from trusted sources.
+- **Adaptive questioning** — no follow-up / difficulty adjustment mid-session.
+- **Citations UI** — `source_citations` generated but no frontend to show them.
+- **Frontend** — API only; `web/` is an unconnected Vite scaffold.
+- **Chunking / retrieval** — full material text sent to LLM (truncated at ~3M chars); no RAG yet.
 
 ## Structure
 
 ```
 src/
-├── api/                    # FastAPI routes + app factory
-│   ├── app.py              # App startup, lifespan (schema init)
+├── api/                    # FastAPI app factory + routes (6-step loop)
+│   ├── app.py              # create_app(), /health
 │   ├── schemas.py          # Pydantic request/response models
 │   └── routes/
-│       ├── materials.py    # Upload text or PDF
-│       ├── contexts.py     # Build learning context
-│       ├── questions.py    # Generate/fetch questions
-│       └── sessions.py     # Session lifecycle
-├── cache/                  # Dragonfly (Redis) connection + CacheService
-│   └── dragonfly.py
-├── db/                     # Neon PostgreSQL connection + schema
-│   ├── connection.py       # asyncpg pool wrapper
-│   └── schema.sql          # Table definitions (auto-applied on startup)
+│       ├── materials.py    # Upload (text JSON + PDF alias)
+│       ├── contexts.py     # Goal → context
+│       ├── questions.py    # Preparing (generate/fetch)
+│       └── sessions.py     # Practice → Results → Retest
 ├── services/               # Business logic
-│   ├── material_service.py # Upload text/PDF, object storage integration
+│   ├── material_service.py # Upload text/PDF, object storage
 │   ├── context_service.py  # Build context, cache in Dragonfly
 │   ├── question_service.py # Generate questions, cache only
-│   ├── session_service.py  # Session lifecycle, DB write on complete
-│   └── object_storage.py   # Neon Object Storage (S3-compatible) client
-├── models/                 # Pydantic domain models
-├── ingestion/              # PDF/text/Markdown parsers
+│   ├── session_service.py  # Session lifecycle, LLM rubric scoring
+│   ├── openrouter_service.py # LLM client (fallback, retry, cache)
+│   └── object_storage.py   # Neon Object Storage (S3-compatible)
+├── models/                 # Pydantic domain models (material, goal, context)
+├── ingestion/              # PDF / text / Markdown parsers
 ├── context/                # ContextBuilder (material + goal → context)
-└── cli/                    # Paused — not building for now
+├── cache/                  # Dragonfly (Redis) connection + CacheService
+├── db/                     # Neon PostgreSQL connection + schema.sql
+└── migrations/             # Alembic migrations
+tests/                      # pytest suite (43 tests)
+web/                        # Vite scaffold (not connected)
 ```
 
 ## Setup
@@ -77,12 +74,20 @@ DATABASE_URL=postgresql://...
 DRAGONFLY_URL=redis://:password@localhost:6380
 DRAGONFLY_PASSWORD=your_password
 
-# Neon Object Storage
+# Neon Object Storage (S3-compatible)
 AWS_ENDPOINT_URL_S3=https://...
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 AWS_REGION=us-east-2
 NEON_STORAGE_BUCKET=materials
+
+# LLM (OpenRouter) — required for question generation + scoring
+OPENROUTER_API_KEY=sk-or-...
+# Optional (defaults shown):
+# OPENROUTER_MODEL=inclusionai/ling-3.0-flash-vl:free
+# OPENROUTER_MODELS=model-a,model-b  (fallback list)
+# OPENROUTER_API_URL=https://openrouter.ai/api/v1/chat/completions
+# OPENROUTER_SITE_URL= / OPENROUTER_APP_NAME= (analytics headers)
 ```
 
 ## Running
@@ -91,28 +96,31 @@ NEON_STORAGE_BUCKET=materials
 # Start Dragonfly
 docker compose up -d
 
-# Start server
-uv run uvicorn api.app:app --reload --host 0.0.0.0 --port 8000
+# Start server (from repo root)
+PYTHONPATH=src uv run uvicorn api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Swagger docs at `http://localhost:8000/docs`.
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/materials` | Upload text/markdown (JSON body) |
-| `POST` | `/materials/upload` | Upload PDF file (multipart) |
-| `GET` | `/materials/{id}` | Fetch material metadata |
-| `GET` | `/materials/{id}/download` | Get presigned download URL |
-| `POST` | `/contexts` | Build context from materials + goal |
-| `POST` | `/contexts/{id}/questions` | Generate practice questions |
-| `GET` | `/contexts/{id}/questions` | Fetch cached questions |
-| `POST` | `/sessions` | Start a practice session |
-| `GET` | `/sessions/{id}` | Get session state |
-| `POST` | `/sessions/{id}/answer` | Submit an answer |
-| `POST` | `/sessions/{id}/complete` | Complete session, write to DB |
-| `GET` | `/health` | Health check |
+| Method | Path | Step | Description |
+|---|---|---|---|
+| `POST` | `/materials` | Upload | Upload text/markdown (JSON body) |
+| `POST` | `/materials/upload` | Upload | Upload PDF file (multipart, alias) |
+| `GET` | `/materials/{id}` | Upload | Fetch material metadata |
+| `GET` | `/materials/{id}/download` | Upload | Presigned download URL (PDFs only) |
+| `POST` | `/contexts` | Goal | Build context from materials + goal |
+| `GET` | `/contexts/{id}` | Goal | Fetch context (cache → DB) |
+| `POST` | `/contexts/{id}/questions` | Preparing | Generate practice set (LLM) |
+| `GET` | `/contexts/{id}/questions` | Preparing | Fetch cached questions |
+| `POST` | `/sessions` | Practice | Start session (`{context_id}`) |
+| `GET` | `/sessions/{id}` | Practice | Get session state |
+| `POST` | `/sessions/{id}/answer` | Practice | Submit answer (`question_index, answer_text, skipped`) |
+| `POST` | `/sessions/{id}/complete` | Results | Complete session, readiness %, persist to DB |
+| `GET` | `/sessions/{id}/results` | Results | Fetch results (cache → DB) |
+| `POST` | `/sessions/{id}/retest` | Retest | New session sliced from parent (`{count}`) |
+| `GET` | `/health` | — | Health check |
 
 ## Testing
 
