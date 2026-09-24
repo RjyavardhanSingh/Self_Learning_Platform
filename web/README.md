@@ -1,32 +1,47 @@
-# React + TypeScript + Vite
+# Recall web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The user-facing learning workspace for the Adaptive Oral Learning Platform.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 + TypeScript + Vite
+- Tailwind CSS v4
+- shadcn/ui-style primitives with Radix-compatible structure
+- Zod + React Hook Form
+- TanStack Query
+- React Router
+- Lucide icons
+- Sonner notifications
+- Bun
 
-## React Compiler
+## Run locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+bun install
+cp .env.example .env
+bun run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The frontend expects the API at `http://localhost:8000/v1` by default. Set `VITE_API_BASE_URL` in `.env` to point to another environment.
+
+## Available scripts
+
+```bash
+bun run dev       # Start Vite development server
+bun run build     # Typecheck and build for production
+bun run lint      # Run Oxlint
+bun run preview   # Preview the production build
+```
+
+## Current sprint
+
+Sprint 1 provides the product foundation and the first user journey:
+
+- Welcome screen
+- Material upload with text and PDF support
+- Goal creation form
+- Question preparation screen
+- Responsive black-and-white application shell
+- API health indicator
+- Typed API client for `/v1` endpoints
+- Zod validation and accessible form states

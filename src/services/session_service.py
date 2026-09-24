@@ -10,6 +10,18 @@ from cache.dragonfly import CacheService
 from db.connection import Database
 
 
+class SessionNotFoundError(ValueError):
+    """Raised when a session does not exist."""
+
+
+class SessionConflictError(ValueError):
+    """Raised when a session operation conflicts with its current state."""
+
+
+class InvalidAnswerError(ValueError):
+    """Raised when an answer is invalid for the current question."""
+
+
 async def create_session(cache: CacheService, context_id: str, questions: list[dict]) -> dict:
     """Start a new session. Stores state in Dragonfly."""
     session_id = uuid.uuid4().hex[:16]
@@ -47,7 +59,15 @@ async def submit_answer(
     """
     state = cache.get(f"session:{session_id}")
     if state is None:
-        raise ValueError(f"Session not found: {session_id}")
+        raise SessionNotFoundError(f"Session not found: {session_id}")
+    if state.get("status") != "active":
+        raise SessionConflictError("Session is no longer active")
+    if question_index != state.get("current_index", 0):
+        raise SessionConflictError("Answers must be submitted one question at a time")
+    if _get_question(state, question_index) is None:
+        raise InvalidAnswerError("Question index is out of range")
+    if not skipped and not answer_text.strip():
+        raise InvalidAnswerError("Answer text is required unless skipped=true")
 
     if skipped:
         score = 0
@@ -103,7 +123,11 @@ async def complete_session(
     """
     state = cache.get(f"session:{session_id}")
     if state is None:
-        raise ValueError(f"Session not found: {session_id}")
+        raise SessionNotFoundError(f"Session not found: {session_id}")
+    if state.get("status") != "active":
+        raise SessionConflictError("Session is already completed")
+    if state.get("current_index", 0) != len(state.get("questions", [])):
+        raise SessionConflictError("Answer every question or skip it before completing")
 
     scores = state.get("scores", [])
     if scores:

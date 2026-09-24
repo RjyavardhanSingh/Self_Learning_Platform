@@ -5,13 +5,17 @@ multipart PDF. POST /materials/upload is kept as alias (duplicate removed
 from docs) to avoid breaking existing clients.
 """
 
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from api.schemas import MaterialResponse, MaterialUpload
+from api.schemas import MaterialDownloadResponse, MaterialResponse, MaterialUpload
 from db.connection import Database, get_db
 from services import material_service
 
 router = APIRouter(prefix="/materials", tags=["Upload"])
+MAX_PDF_BYTES = int(os.getenv("MAX_PDF_UPLOAD_BYTES", str(25 * 1024 * 1024)))
 
 
 def _to_response(doc) -> MaterialResponse:
@@ -41,9 +45,26 @@ async def upload_file_material(
     file: UploadFile = File(...),
     db: Database = Depends(get_db),
 ):
-    """Step 1 — Upload: PDF file. Alias of POST /materials (multipart)."""
-    data = await file.read()
-    doc = await material_service.upload_pdf(db, file.filename or "upload.pdf", data)
+    """Step 1 — Upload: validate and store a PDF file."""
+    filename = Path(file.filename or "upload.pdf").name
+    content_type = (file.content_type or "").split(";", 1)[0].lower()
+    if content_type not in {"", "application/pdf"} or not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=415, detail="Only PDF uploads are supported")
+
+    data = await file.read(MAX_PDF_BYTES + 1)
+    if len(data) > MAX_PDF_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"PDF exceeds the {MAX_PDF_BYTES} byte upload limit",
+        )
+    try:
+        doc = await material_service.upload_pdf(db, filename, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=502, detail="PDF storage is temporarily unavailable"
+        ) from exc
     return _to_response(doc)
 
 
@@ -65,7 +86,7 @@ async def get_material(
     )
 
 
-@router.get("/{material_id}/download")
+@router.get("/{material_id}/download", response_model=MaterialDownloadResponse)
 async def download_material(
     material_id: str,
     db: Database = Depends(get_db),

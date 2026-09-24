@@ -44,3 +44,15 @@ class CacheService:
     def exists(self, key: str) -> bool:
         """Check if a key exists."""
         return bool(self._client.exists(key))
+
+    def ping(self) -> bool:
+        """Verify that the cache is reachable."""
+        return bool(self._client.ping())
+
+
+def close_cache() -> None:
+    """Close the process-wide cache client, if one was created."""
+    global _CACHE
+    if _CACHE is not None:
+        _CACHE.close()
+        _CACHE = None

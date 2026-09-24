@@ -15,6 +15,7 @@ async def generate_questions(
     cache: CacheService,
     db: Database,
     context_id: str,
+    count: int | None = None,
 ) -> list[dict]:
     """Generate practice questions from a cached LearningContext.
 
@@ -47,7 +48,9 @@ async def generate_questions(
     goal = context_data.get("goal", {})
     word_count = context_data.get("stats", {}).get("word_count", 0)
 
-    questions = await openrouter_generate(cache, context_id, material_content, goal, word_count)
+    questions = await openrouter_generate(
+        cache, context_id, material_content, goal, word_count, count=count
+    )
 
     cache.set(f"questions:{context_id}", questions, ttl=86400)
     return questions

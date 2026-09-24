@@ -44,6 +44,19 @@ class Database:
         pool = await self._get_pool()
         return await pool.execute(query, *args)
 
+    async def ping(self) -> bool:
+        """Verify that the database is reachable."""
+        pool = await self._get_pool()
+        return await pool.fetchval("SELECT 1") == 1
+
+
+async def close_pool() -> None:
+    """Close the process-wide PostgreSQL pool, if one was created."""
+    global _POOL
+    if _POOL is not None:
+        await _POOL.close()
+        _POOL = None
+
 
 async def get_db() -> AsyncGenerator[Database, None]:
     """FastAPI dependency that yields a Database instance."""
