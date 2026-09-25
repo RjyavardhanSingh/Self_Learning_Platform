@@ -9,6 +9,7 @@ Each section maps 1:1 to a user step. Shared enums stay at top.
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -131,11 +132,13 @@ class SessionResponse(BaseModel):
     question_count: int
     current_index: int
     status: str  # active | completed
+    pending_count: int = 0  # answers still being scored in the background
+    scored_count: int = 0
 
 
 class AnswerSubmit(BaseModel):
     question_index: int = Field(ge=0)
-    answer_text: str = Field(max_length=5000)
+    answer_text: str = Field(max_length=12000)  # ~10 min of speech
     skipped: bool = False  # PRD §9.3 — always allowed
 
 
@@ -147,10 +150,10 @@ class AnswerResponse(BaseModel):
     concept_coverage: list[str] = Field(default_factory=list)
     concepts_missed: list[str] = Field(default_factory=list)
     misconceptions_found: list[str] = Field(default_factory=list)
-    status: str = "scored"  # pending | scored | failed
+    status: Literal["pending", "scored", "failed"] = "scored"
     question_id: str | None = None
     job_id: str | None = None
-    scored_by: str | None = None  # llm | fallback | skip
+    scored_by: Literal["llm", "fallback", "skip"] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -202,8 +205,11 @@ class RetestResponse(BaseModel):
     context_id: str
     question_count: int
     status: str
-    weak_topics: list[str] = Field(default_factory=list)
+    # Topics covered by this retest — only "weak" ones when weak_only=True.
+    selected_topics: list[str] = Field(default_factory=list)
     previous_scores: dict[str, int] = Field(default_factory=dict)
+    # Sanitized questions for the practice screen (answer keys excluded).
+    questions: list[QuestionResponse] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

@@ -56,11 +56,18 @@ def _question(idx, topic="Cells", ref=True):
 def test_assign_question_ids_backfills_missing():
     questions = [{"text": "Q0?"}, {"id": "keep", "text": "Q1?"}]
 
-    result = question_service.assign_question_ids(questions, "ctx9")
+    changed = question_service.assign_question_ids(questions, "ctx9")
 
-    assert result[0]["id"] == "ctx9:q0"
-    assert result[1]["id"] == "keep"
+    assert changed is True
+    assert questions[0]["id"] == "ctx9:q0"
+    assert questions[1]["id"] == "keep"
     assert question_service.make_question_id("ctx9", 4) == "ctx9:q4"
+
+
+def test_assign_question_ids_reports_no_change():
+    questions = [{"id": "ctx9:q0", "text": "Q0?"}]
+
+    assert question_service.assign_question_ids(questions, "ctx9") is False
 
 
 def test_submit_answer_enqueues_pending_with_db():
@@ -193,7 +200,7 @@ def test_create_retest_filters_weak_and_links_parent():
     assert state["parent_session_id"] == "p1"
     assert state["is_retest"] is True
     assert meta["previous_scores"] == {"c1:q1": 40}
-    assert meta["weak_topics"] == ["B"]
+    assert meta["selected_topics"] == ["B"]
     assert state["questions"][0]["previous_attempt"]["score"] == 40
 
 

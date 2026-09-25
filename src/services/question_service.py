@@ -16,12 +16,14 @@ def make_question_id(context_id: str, index: int) -> str:
     return f"{context_id}:q{index}"
 
 
-def assign_question_ids(questions: list[dict], context_id: str) -> list[dict]:
-    """Backfill missing question IDs in place. Returns the same list."""
+def assign_question_ids(questions: list[dict], context_id: str) -> bool:
+    """Backfill missing question IDs in place. Returns True if anything changed."""
+    changed = False
     for index, question in enumerate(questions):
         if isinstance(question, dict) and not question.get("id"):
             question["id"] = make_question_id(context_id, index)
-    return questions
+            changed = True
+    return changed
 
 
 async def generate_questions(
@@ -75,7 +77,8 @@ async def get_questions(cache: CacheService, context_id: str) -> list[dict] | No
     questions = cache.get(f"questions:{context_id}")
     if questions is None:
         return None
-    # Backfill IDs for sets generated before IDs existed, then persist.
-    assign_question_ids(questions, context_id)
-    cache.set(f"questions:{context_id}", questions, ttl=86400)
+    # Backfill IDs for sets generated before IDs existed, persisting only
+    # when something actually changed.
+    if assign_question_ids(questions, context_id):
+        cache.set(f"questions:{context_id}", questions, ttl=86400)
     return questions

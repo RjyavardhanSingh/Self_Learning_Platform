@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.schemas import (
     AnswerResponse,
     AnswerSubmit,
+    QuestionResponse,
     RetestCreate,
     RetestResponse,
     SessionCompleteResponse,
@@ -25,6 +26,14 @@ from services.session_service import (
 router = APIRouter(prefix="/sessions")
 
 
+def _progress(state: dict) -> tuple[int, int]:
+    """Count (pending, scored) answers for background-scoring visibility."""
+    answers = state.get("answers", [])
+    pending = sum(1 for a in answers if a.get("status") == "pending")
+    scored = sum(1 for a in answers if a.get("status") == "scored")
+    return pending, scored
+
+
 @router.post(
     "", response_model=SessionResponse, tags=["Practice"], summary="Practice — start session"
 )
@@ -38,12 +47,15 @@ async def create_session(
         raise HTTPException(status_code=404, detail="Generate questions first")
 
     state = await session_service.create_session(cache, payload.context_id, questions)
+    pending, scored = _progress(state)
     return SessionResponse(
         id=state["id"],
         context_id=state["context_id"],
         question_count=len(state["questions"]),
         current_index=state["current_index"],
         status=state["status"],
+        pending_count=pending,
+        scored_count=scored,
     )
 
 
@@ -61,12 +73,15 @@ async def get_session(
     state = await session_service.get_session(cache, session_id)
     if state is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    pending, scored = _progress(state)
     return SessionResponse(
         id=state["id"],
         context_id=state["context_id"],
         question_count=len(state["questions"]),
         current_index=state["current_index"],
         status=state["status"],
+        pending_count=pending,
+        scored_count=scored,
     )
 
 
@@ -225,6 +240,7 @@ async def create_retest(
         context_id=state["context_id"],
         question_count=len(state["questions"]),
         status=state["status"],
-        weak_topics=meta.get("weak_topics", []),
+        selected_topics=meta.get("selected_topics", []),
         previous_scores=meta.get("previous_scores", {}),
+        questions=[QuestionResponse(**q) for q in state["questions"]],
     )

@@ -171,7 +171,20 @@ async def submit_answer(
 async def _score_sync(question: dict, answer_text: str) -> dict:
     """Score immediately (used when no Database is available for async jobs)."""
     if question and question.get("reference_answer"):
-        return await _score_with_gemini(question, answer_text)
+        try:
+            return await _score_with_gemini(question, answer_text)
+        except Exception as e:
+            logger.warning(f"Sync LLM scoring failed, using keyword fallback: {e}")
+            ref = question.get("reference_answer", "")
+            score = _score_against_reference(ref, answer_text)
+            return {
+                "score": score,
+                "feedback": "Good" if score >= GOOD_SCORE_THRESHOLD else "Needs work",
+                "concept_coverage": [],
+                "concepts_missed": [],
+                "misconceptions_found": [],
+                "scored_by": "fallback",
+            }
     score = _score_answer(answer_text)
     return {
         "score": score,
@@ -280,21 +293,25 @@ async def score_worker_loop(
     """Background loop: claim and process scoring jobs, backing off when idle.
 
     Runs inside the FastAPI process (see lifespan in api/app.py). Survives
-    restarts because jobs live in Postgres, not memory.
+    restarts because jobs live in Postgres, not memory. The Database wrapper
+    is pool-backed and the cache client is a singleton, so both are created
+    once here and reused across iterations.
     """
     from cache.dragonfly import get_cache
 
+    db = Database()
+    cache = get_cache()
     idle_interval = poll_interval
-    await reset_stale_jobs(Database())
+    await reset_stale_jobs(db)
     while stop_event is None or not stop_event.is_set():
         try:
-            job = await claim_score_job(Database())
+            job = await claim_score_job(db)
             if job is None:
                 idle_interval = min(idle_interval * 2, max_idle_interval)
                 await asyncio.sleep(idle_interval)
                 continue
             idle_interval = poll_interval
-            await process_score_job(get_cache(), Database(), job)
+            await process_score_job(cache, db, job)
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -389,8 +406,17 @@ async def _reconcile_pending_scores(
             session_id,
         )
         if not rows:
-            return
+            break
         await asyncio.sleep(COMPLETE_POLL_INTERVAL)
+
+    # The worker writes scored answers into the *cached* session while we
+    # wait, so our local snapshot is stale. Refresh in place (keeping the
+    # caller's reference valid) before patching leftovers below. The identity
+    # check guards caches that return the same object instead of a copy.
+    fresh = cache.get(f"session:{session_id}")
+    if fresh is not None and fresh is not state:
+        state.clear()
+        state.update(fresh)
 
     leftover = await db.fetch(
         "SELECT * FROM score_jobs WHERE session_id = $1 AND status IN ('pending', 'scoring')",
@@ -625,7 +651,8 @@ async def create_retest(
     by_index = {a.get("question_index"): a for a in answers}
     retest_qs = []
     previous_scores: dict[str, int] = {}
-    weak_topics: set[str] = set()
+    # Topics of the selected questions — only "weak" when weak_only=True.
+    selected_topics: set[str] = set()
     for idx in indices:
         source = dict(questions[idx])
         prior = by_index.get(idx, {})
@@ -638,7 +665,7 @@ async def create_retest(
                 "misconceptions_found": prior.get("misconceptions_found", []),
             }
         if source.get("topic"):
-            weak_topics.add(source["topic"])
+            selected_topics.add(source["topic"])
         retest_qs.append(source)
 
     state = await create_session(
@@ -648,7 +675,7 @@ async def create_retest(
         parent_session_id=parent_session_id,
         weak_only=weak_only,
     )
-    meta = {"weak_topics": sorted(weak_topics), "previous_scores": previous_scores}
+    meta = {"selected_topics": sorted(selected_topics), "previous_scores": previous_scores}
     return state, meta
 
 

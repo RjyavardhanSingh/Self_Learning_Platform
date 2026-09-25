@@ -41,7 +41,10 @@ async def mint_realtime_token() -> dict:
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(TOKEN_URL, headers={"xi-api-key": api_key})
     if resp.status_code != 200:
-        logger.warning(f"ElevenLabs token request failed: {resp.status_code}")
+        logger.warning(
+            "ElevenLabs token request failed",
+            extra={"status_code": resp.status_code},
+        )
         raise STTProviderError("Speech transcription is temporarily unavailable")
     try:
         token = resp.json().get("token", "")
