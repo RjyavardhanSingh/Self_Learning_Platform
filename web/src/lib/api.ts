@@ -26,7 +26,7 @@ export type LearningContext = {
 }
 
 export type Question = {
-  id?: number
+  id?: string
   text: string
   topic?: string
   difficulty?: string
@@ -35,9 +35,73 @@ export type Question = {
   acceptable_alternatives: string[]
   common_misconceptions: string[]
   source_citations: string[]
+  previous_attempt?: {
+    score: number
+    concepts_missed: string[]
+    misconceptions_found: string[]
+  }
 }
 
 export type QuestionList = { questions: Question[] }
+
+export type AnswerStatus = 'pending' | 'scored' | 'failed'
+
+export type AnswerRecord = {
+  question_index: number
+  question_id?: string | null
+  answer_text: string
+  score: number | null
+  feedback: string
+  concept_coverage: string[]
+  concepts_missed: string[]
+  misconceptions_found: string[]
+  status: AnswerStatus
+  job_id?: string | null
+  scored_by?: string | null
+}
+
+export type PracticeSession = {
+  id: string
+  context_id: string
+  question_count: number
+  current_index: number
+  status: string
+  pending_count: number
+  scored_count: number
+}
+
+export type TopicBreakdown = {
+  average_score: number
+  status: string
+  question_count: number
+  concepts_missed: string[]
+  misconceptions: string[]
+}
+
+export type SessionResults = {
+  id: string
+  readiness_score: number
+  questions: Question[]
+  answers: AnswerRecord[]
+  scores: Array<{ question_index: number; score: number | null }>
+  completed_at: string | null
+  topic_summary: Record<string, TopicBreakdown>
+  weak_topics: string[]
+  next_review_suggestion: string | null
+}
+
+export type RetestResult = {
+  id: string
+  parent_session_id: string
+  context_id: string
+  question_count: number
+  status: string
+  selected_topics: string[]
+  previous_scores: Record<string, number>
+  questions: Question[]
+}
+
+export type SttToken = { token: string; expires_in: number }
 
 export type GoalLevel = 'beginner' | 'intermediate' | 'advanced'
 
@@ -119,4 +183,34 @@ export const api = {
     }),
 
   getQuestions: (contextId: string) => request<QuestionList>(`/contexts/${contextId}/questions`),
+
+  createSession: (contextId: string) =>
+    request<PracticeSession>('/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ context_id: contextId }),
+    }),
+
+  getSession: (sessionId: string) => request<PracticeSession>(`/sessions/${sessionId}`),
+
+  submitAnswer: (
+    sessionId: string,
+    payload: { question_index: number; answer_text: string; skipped?: boolean },
+  ) =>
+    request<AnswerRecord>(`/sessions/${sessionId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ skipped: false, ...payload }),
+    }),
+
+  completeSession: (sessionId: string) =>
+    request<SessionResults>(`/sessions/${sessionId}/complete`, { method: 'POST' }),
+
+  getResults: (sessionId: string) => request<SessionResults>(`/sessions/${sessionId}/results`),
+
+  createRetest: (sessionId: string, payload: { weak_only?: boolean; count?: number } = {}) =>
+    request<RetestResult>(`/sessions/${sessionId}/retest`, {
+      method: 'POST',
+      body: JSON.stringify({ weak_only: true, ...payload }),
+    }),
+
+  mintSttToken: () => request<SttToken>('/stt/token'),
 }
