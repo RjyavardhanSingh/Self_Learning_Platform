@@ -96,7 +96,7 @@ class QuestionGenerate(BaseModel):
 
 
 class QuestionResponse(BaseModel):
-    id: int | None = None
+    id: str | None = None
     text: str
     topic: str | None = None
     difficulty: str | None = None
@@ -141,11 +141,16 @@ class AnswerSubmit(BaseModel):
 
 class AnswerResponse(BaseModel):
     question_index: int
-    score: int = Field(ge=0, le=100)
+    # None while the answer is still being scored in the background.
+    score: int | None = Field(default=None, ge=0, le=100)
     feedback: str
     concept_coverage: list[str] = Field(default_factory=list)
     concepts_missed: list[str] = Field(default_factory=list)
     misconceptions_found: list[str] = Field(default_factory=list)
+    status: str = "scored"  # pending | scored | failed
+    question_id: str | None = None
+    job_id: str | None = None
+    scored_by: str | None = None  # llm | fallback | skip
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +166,9 @@ class SessionCompleteResponse(BaseModel):
     answers: list[dict]
     scores: list[dict]
     completed_at: str
+    topic_summary: dict = Field(default_factory=dict)
+    weak_topics: list[str] = Field(default_factory=list)
+    next_review_suggestion: str | None = None
 
 
 class SessionResultsResponse(BaseModel):
@@ -172,6 +180,9 @@ class SessionResultsResponse(BaseModel):
     answers: list[dict]
     scores: list[dict]
     completed_at: str | None = None
+    topic_summary: dict = Field(default_factory=dict)
+    weak_topics: list[str] = Field(default_factory=list)
+    next_review_suggestion: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +192,8 @@ class SessionResultsResponse(BaseModel):
 
 
 class RetestCreate(BaseModel):
-    count: int = Field(default=5, ge=1, le=10)
+    weak_only: bool = True
+    count: int | None = Field(default=None, ge=1, le=20)
 
 
 class RetestResponse(BaseModel):
@@ -190,3 +202,17 @@ class RetestResponse(BaseModel):
     context_id: str
     question_count: int
     status: str
+    weak_topics: list[str] = Field(default_factory=list)
+    previous_scores: dict[str, int] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# 7. STT — realtime transcription token (ElevenLabs Scribe)
+# GET /v1/stt/token — the browser uses the token directly with ElevenLabs,
+# so the API key never leaves the server.
+# ---------------------------------------------------------------------------
+
+
+class SttTokenResponse(BaseModel):
+    token: str
+    expires_in: int

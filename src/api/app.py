@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -17,7 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from api.routes import contexts, materials, questions, sessions
+from api.routes import contexts, materials, questions, sessions, stt
 from cache import get_cache
 from db.connection import Database, close_pool, get_db
 
@@ -30,12 +31,24 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Release shared clients cleanly when the server shuts down."""
-    yield
-    await close_pool()
-    from cache.dragonfly import close_cache
+    """Start the scoring worker, then release shared clients on shutdown."""
+    from services import session_service
 
-    close_cache()
+    stop_event = asyncio.Event()
+    worker = asyncio.create_task(session_service.score_worker_loop(stop_event=stop_event))
+    try:
+        yield
+    finally:
+        stop_event.set()
+        worker.cancel()
+        try:
+            await worker
+        except asyncio.CancelledError:
+            pass
+        await close_pool()
+        from cache.dragonfly import close_cache
+
+        close_cache()
 
 
 def _cors_origins() -> list[str]:
@@ -117,7 +130,7 @@ def create_app() -> FastAPI:
         logger.exception("Unhandled API error", extra={"request_id": request.state.request_id})
         return _error_response(request, 500, "Internal server error")
 
-    routers = (materials.router, contexts.router, questions.router, sessions.router)
+    routers = (materials.router, contexts.router, questions.router, sessions.router, stt.router)
     for router in routers:
         app.include_router(router, prefix="/v1")
     # Keep old clients working during migration, but only document /v1.
