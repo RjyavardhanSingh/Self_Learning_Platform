@@ -44,6 +44,9 @@ export function useVoiceAnswer({ getToken, maxSeconds = MAX_RECORD_SECONDS, onEr
 
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
+    // Microphone mode: without this (or audioFormat + sampleRate), connect()
+    // throws before any network happens.
+    microphone: { echoCancellation: true, noiseSuppression: true },
     onPartialTranscript: (data) => setPartial(data.text),
     onCommittedTranscript: (data) => {
       committedRef.current = committedRef.current ? `${committedRef.current} ${data.text}` : data.text
@@ -86,11 +89,32 @@ export function useVoiceAnswer({ getToken, maxSeconds = MAX_RECORD_SECONDS, onEr
     committedRef.current = ''
     setElapsedSecs(0)
     setPhase('connecting')
+    // 1. Microphone access first — its failure is the most common cause and
+    //    needs different guidance than a service outage.
     try {
-      const token = await getToken()
-      await scribeRef.current.connect({ token })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((track) => track.stop())
+    } catch {
+      reportError(
+        'Microphone is blocked. Allow microphone access in the address bar, then try again.',
+      )
+      return
+    }
+    // 2. Mint the short-lived transcription token from our backend.
+    let token: string
+    try {
+      token = await getToken()
     } catch {
       reportError('Could not reach the transcription service. Try again.')
+      return
+    }
+    // 3. Open the live transcription session.
+    try {
+      await scribeRef.current.connect({ token })
+    } catch {
+      reportError(
+        'Could not start live transcription. Check your connection (and any ad-blocker or VPN), then try again.',
+      )
       return
     }
     startedAtRef.current = Date.now()

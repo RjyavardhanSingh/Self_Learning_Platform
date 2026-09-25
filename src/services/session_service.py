@@ -358,6 +358,12 @@ async def complete_session(
     state["next_review_suggestion"] = _next_review_suggestion(weak_topics)
     state["completed_at"] = datetime.now(timezone.utc).isoformat()
 
+    # asyncpg needs datetime objects for TIMESTAMPTZ, not the ISO strings
+    # we keep in the JSON-serializable cache state.
+    now = datetime.now(timezone.utc)
+    started_at = _parse_completed_at(state.get("started_at")) or now
+    completed_at = _parse_completed_at(state.get("completed_at")) or now
+
     await db.execute(
         """INSERT INTO sessions (id, context_id, parent_session_id, is_retest, weak_only,
               questions, answers, scores, readiness_score, topic_summary, weak_topics,
@@ -375,8 +381,8 @@ async def complete_session(
         readiness,
         json.dumps(topic_summary),
         json.dumps(weak_topics),
-        state["started_at"],
-        state["completed_at"],
+        started_at,
+        completed_at,
     )
 
     await _upsert_concept_mastery(db, state)
