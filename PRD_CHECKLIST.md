@@ -2,7 +2,7 @@
 
 Source: `PRD.md` v0.1 (11 Sep 2026). Order below is **suggested build order, not mandatory** — pick any item independently. Every PRD section is covered with its § reference.
 
-Legend: `[x]` done · `[ ]` todo · `[/]` partiall
+Legend: `[x]` done · `[ ]` todo · `[/]` partial
 
 ## A. Foundation — entry point + infra (PRD §17, §12)
 
