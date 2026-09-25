@@ -84,8 +84,10 @@ NEON_STORAGE_BUCKET=materials
 
 # LLM (OpenRouter) — required for question generation + scoring
 OPENROUTER_API_KEY=sk-or-...
+# STT (ElevenLabs Scribe realtime) — required for voice answers
+ELEVENLABS_API_KEY=sk_...
 # Optional (defaults shown):
-# OPENROUTER_MODEL=inclusionai/ling-3.0-flash-vl:free
+# OPENROUTER_MODEL=poolside/laguna-s-2.1:free
 # OPENROUTER_MODELS=model-a,model-b  (fallback list)
 # OPENROUTER_API_URL=https://openrouter.ai/api/v1/chat/completions
 # Optional production HTTP settings

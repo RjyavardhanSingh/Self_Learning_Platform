@@ -11,6 +11,21 @@ from services.openrouter_service import generate_questions as openrouter_generat
 logger = logging.getLogger(__name__)
 
 
+def make_question_id(context_id: str, index: int) -> str:
+    """Stable, deterministic ID linking a question to its context."""
+    return f"{context_id}:q{index}"
+
+
+def assign_question_ids(questions: list[dict], context_id: str) -> bool:
+    """Backfill missing question IDs in place. Returns True if anything changed."""
+    changed = False
+    for index, question in enumerate(questions):
+        if isinstance(question, dict) and not question.get("id"):
+            question["id"] = make_question_id(context_id, index)
+            changed = True
+    return changed
+
+
 async def generate_questions(
     cache: CacheService,
     db: Database,
@@ -51,6 +66,7 @@ async def generate_questions(
     questions = await openrouter_generate(
         cache, context_id, material_content, goal, word_count, count=count
     )
+    assign_question_ids(questions, context_id)
 
     cache.set(f"questions:{context_id}", questions, ttl=86400)
     return questions
@@ -58,4 +74,11 @@ async def generate_questions(
 
 async def get_questions(cache: CacheService, context_id: str) -> list[dict] | None:
     """Fetch cached questions for a context. Returns None if not found."""
-    return cache.get(f"questions:{context_id}")
+    questions = cache.get(f"questions:{context_id}")
+    if questions is None:
+        return None
+    # Backfill IDs for sets generated before IDs existed, persisting only
+    # when something actually changed.
+    if assign_question_ids(questions, context_id):
+        cache.set(f"questions:{context_id}", questions, ttl=86400)
+    return questions

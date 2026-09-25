@@ -120,10 +120,8 @@ class _FakeCache:
         self.state = value
 
 
-def test_submit_answer_scores_against_reference():
-    import asyncio
-
-    question = {
+def _scored_question():
+    return {
         "text": "What do mitochondria produce?",
         "topic": "Cells",
         "reference_answer": "Mitochondria produce ATP through cellular respiration.",
@@ -138,26 +136,64 @@ def test_submit_answer_scores_against_reference():
         },
         "source_citations": ["Page 5"],
     }
-    cache = _FakeCache(
-        {
-            "id": "s1",
-            "context_id": "c1",
-            "questions": [question],
-            "answers": [],
-            "scores": [],
-            "current_index": 0,
-            "status": "active",
-        }
-    )
 
-    record = asyncio.run(
-        session_service.submit_answer(
-            cache, "s1", 0, "Mitochondria produce ATP through cellular respiration."
-        )
-    )
 
-    assert record["score"] == 100
+def _active_state(question):
+    return {
+        "id": "s1",
+        "context_id": "c1",
+        "questions": [question],
+        "answers": [],
+        "scores": [],
+        "current_index": 0,
+        "status": "active",
+    }
+
+
+def test_submit_answer_fallback_scoring_is_deterministic(monkeypatch):
+    import asyncio
+
+    async def _broken_llm(question, answer_text):
+        raise RuntimeError("LLM unavailable")
+
+    monkeypatch.setattr(session_service, "_score_with_gemini", _broken_llm)
+    cache = _FakeCache(_active_state(_scored_question()))
+    answer = "Mitochondria produce ATP through cellular respiration."
+
+    record = asyncio.run(session_service.submit_answer(cache, "s1", 0, answer))
+
+    expected = session_service._score_against_reference(
+        _scored_question()["reference_answer"], answer
+    )
+    assert record["score"] == expected == 100
     assert record["feedback"] == "Good"
+    assert record["scored_by"] == "fallback"
+
+
+def test_submit_answer_llm_path_returns_rich_feedback(monkeypatch):
+    import asyncio
+
+    async def _fake_llm(question, answer_text):
+        return {
+            "score": 85,
+            "feedback": "Strong answer, missing one detail.",
+            "concept_coverage": ["mitochondria", "ATP"],
+            "concepts_missed": ["cellular respiration"],
+            "misconceptions_found": [],
+            "scored_by": "llm",
+        }
+
+    monkeypatch.setattr(session_service, "_score_with_gemini", _fake_llm)
+    cache = _FakeCache(_active_state(_scored_question()))
+
+    record = asyncio.run(session_service.submit_answer(cache, "s1", 0, "Partial answer."))
+
+    assert record["score"] == 85
+    assert record["feedback"] == "Strong answer, missing one detail."
+    assert record["concept_coverage"] == ["mitochondria", "ATP"]
+    assert record["concepts_missed"] == ["cellular respiration"]
+    assert record["misconceptions_found"] == []
+    assert record["scored_by"] == "llm"
 
 
 def test_submit_answer_falls_back_without_reference():
