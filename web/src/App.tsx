@@ -5,6 +5,8 @@ import { WelcomePage } from './pages/welcome-page'
 import { UploadPage } from './pages/upload-page'
 import { GoalPage } from './pages/goal-page'
 import { PreparingPage } from './pages/preparing-page'
+import { PracticePage } from './pages/practice-page'
+import { ResultsPage } from './pages/results-page'
 import { SprintPlaceholderPage } from './pages/sprint-placeholder-page'
 
 const queryClient = new QueryClient({
@@ -26,8 +28,8 @@ export default function App() {
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/goal" element={<GoalPage />} />
           <Route path="/preparing" element={<PreparingPage />} />
-          <Route path="/practice" element={<SprintPlaceholderPage title="Practice is next" description="Your practice screen is coming in Sprint 2. Your prepared questions are safe." />} />
-          <Route path="/results" element={<SprintPlaceholderPage title="Results are next" description="Complete a practice session to unlock your results view." />} />
+          <Route path="/practice" element={<PracticePage />} />
+          <Route path="/results" element={<ResultsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
