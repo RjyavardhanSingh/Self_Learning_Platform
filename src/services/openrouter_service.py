@@ -14,9 +14,16 @@ from cache.dragonfly import CacheService
 logger = logging.getLogger(__name__)
 
 API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")
-DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "inclusionai/ling-3.0-flash-vl:free")
+DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "poolside/laguna-s-2.1:free")
 # Comma-separated fallback list, e.g. "model-a,model-b"
-MODELS = [m.strip() for m in os.getenv("OPENROUTER_MODELS", DEFAULT_MODEL).split(",") if m.strip()]
+MODELS = [
+    m.strip()
+    for m in os.getenv(
+        "OPENROUTER_MODELS",
+        f"{DEFAULT_MODEL},qwen/qwen3.8-27b:free",
+    ).split(",")
+    if m.strip()
+]
 RETRY_DELAYS = [3, 10, 20]
 MAX_INPUT_TOKENS = 800000  # Leave room for prompt template + output
 
