@@ -4,39 +4,44 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell, ProgressDots, StepHeader } from '../components/layout/app-shell'
+import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent } from '../components/ui/card'
 import { api, ApiError, type LearningContext, type Question } from '../lib/api'
 
 function readContext(): LearningContext | null {
   const stored = window.sessionStorage.getItem('recall.context')
-  return stored ? JSON.parse(stored) as LearningContext : null
+  return stored ? (JSON.parse(stored) as LearningContext) : null
 }
 
 export function PreparingPage() {
   const navigate = useNavigate()
   const context = readContext()
-  const [questions, setQuestions] = useState<Question[]>([])
+  const [generated, setGenerated] = useState<Question[]>([])
+
   const { data, isLoading } = useQuery({
     queryKey: ['questions', context?.id],
     queryFn: () => api.getQuestions(context?.id ?? ''),
     enabled: Boolean(context?.id),
     retry: false,
   })
+
   const generate = useMutation({
     mutationFn: () => api.generateQuestions(context?.id ?? '', 5),
     onSuccess: (result) => {
-      setQuestions(result.questions)
+      setGenerated(result.questions)
       window.sessionStorage.setItem('recall.questions', JSON.stringify(result.questions))
-      toast.success(`${result.questions.length} practice questions are ready.`)
+      toast.success(
+        `${result.questions.length} practice questions are ready.`,
+      )
     },
     onError: (error) => {
       toast.error(error instanceof ApiError ? error.message : 'Question generation failed.')
     },
   })
+
   const startPractice = useMutation({
     mutationFn: () => api.createSession(context?.id ?? ''),
     onSuccess: (session) => {
@@ -47,39 +52,161 @@ export function PreparingPage() {
       toast.error(error instanceof ApiError ? error.message : 'Could not start practice.')
     },
   })
-  const visibleQuestions = questions.length > 0 ? questions : data?.questions ?? []
+
+  const visible = generated.length > 0 ? generated : (data?.questions ?? [])
+  const busy = generate.isPending || startPractice.isPending
 
   if (!context) {
     return (
       <AppShell>
-        <div className="mx-auto flex min-h-[65vh] max-w-xl flex-col items-center justify-center text-center">
-          <h1 className="text-3xl font-semibold tracking-[-0.04em]">Your context is missing.</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-500">Start again by uploading a material and setting your goal.</p>
-          <Link to="/upload"><Button className="mt-6">Start over <ArrowRight className="size-4" /></Button></Link>
-        </div>
+        <EmptyState
+          icon={<Sparkles className="size-6" aria-hidden="true" />}
+          title="Your Context Is Missing"
+          description="Start again by uploading a material and setting your goal."
+          action={
+            <Button asChild>
+              <Link to="/upload">
+                Start Over
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          }
+        />
       </AppShell>
     )
   }
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl">
-        <StepHeader eyebrow="Step 3 of 6 · Preparing" title="Let’s make this yours." description="We’ll turn your material and goal into a focused set of practice questions." />
-        <div className="mt-8"><ProgressDots current={3} /></div>
-        <div className="mt-10 max-w-3xl">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4"><div><CardTitle>Practice questions</CardTitle><CardDescription className="mt-1">Five questions is a great place to start.</CardDescription></div><Badge>{visibleQuestions.length || '—'} ready</Badge></div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? <div className="flex items-center gap-2 rounded-xl bg-zinc-50 p-4 text-sm text-zinc-500"><LoaderCircle className="size-4 animate-spin" /> Looking for saved questions…</div> : null}
-              {!isLoading && visibleQuestions.length === 0 ? <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center"><div className="mx-auto grid size-11 place-items-center rounded-2xl bg-zinc-100"><Sparkles className="size-5" /></div><p className="mt-4 text-sm font-semibold">Your questions will appear here.</p><p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-zinc-500">Generate a small practice set based on your material and goal.</p><Button className="mt-5" onClick={() => generate.mutate()} disabled={generate.isPending}>{generate.isPending ? <><LoaderCircle className="size-4 animate-spin" />Creating…</> : <>Generate questions <Sparkles className="size-4" /></>}</Button></div> : null}
-              {visibleQuestions.length > 0 ? <div className="space-y-3">{visibleQuestions.map((question, index) => <div key={`${question.text}-${index}`} className="flex min-w-0 gap-3 rounded-xl border border-zinc-200 p-4"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">{index + 1}</span><div className="min-w-0"><p className="break-words text-sm font-medium leading-6 text-zinc-900">{question.text}</p>{question.topic ? <p className="mt-2 text-xs text-zinc-400">{question.topic}</p> : null}</div></div>)}<div className="flex flex-col gap-3 pt-3 sm:flex-row sm:justify-between"><Button variant="secondary" onClick={() => generate.mutate()} disabled={generate.isPending}><RefreshCw className="size-4" />Regenerate</Button><Button onClick={() => startPractice.mutate()} disabled={startPractice.isPending}>{startPractice.isPending ? <><LoaderCircle className="size-4 animate-spin" />Starting…</> : <>Let's go, champ <ArrowRight className="size-4" /></>}</Button></div></div> : null}
-              {generate.isError ? <Alert className="mt-4">{generate.error instanceof ApiError ? generate.error.message : 'Question generation failed. Is the API running?'}</Alert> : null}
-            </CardContent>
-          </Card>
-        </div>
-        <Link to="/goal" className="mt-8 inline-flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-950"><ArrowLeft className="size-3.5" />Back to goal</Link>
+      <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+        <PageHeader
+          title="Let's Make This Yours"
+          description="We turn your material and goal into a focused set of practice questions."
+          action={
+            visible.length > 0 ? (
+              <Badge className="tabular">{visible.length} Ready</Badge>
+            ) : null
+          }
+        />
+
+        <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <CardContent className="scroll-area min-h-0 flex-1 p-5">
+            {isLoading ? (
+              <p
+                className="flex items-center gap-2 text-sm text-zinc-500"
+                role="status"
+              >
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                Looking for saved questions…
+              </p>
+            ) : null}
+
+            {!isLoading && visible.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 p-8 text-center">
+                <span className="grid size-11 place-items-center rounded-2xl bg-zinc-100">
+                  <Sparkles className="size-5 text-zinc-500" aria-hidden="true" />
+                </span>
+                <p className="text-pretty mt-4 text-sm font-semibold">
+                  Your questions will appear here.
+                </p>
+                <p className="text-pretty mt-2 max-w-xs text-xs leading-5 text-zinc-500">
+                  Generate a small practice set based on your material and goal.
+                </p>
+              </div>
+            ) : null}
+
+            {visible.length > 0 ? (
+              <ol className="space-y-2.5">
+                {visible.map((question, index) => (
+                  <li
+                    key={question.id ?? `${question.text}-${index}`}
+                    className="flex min-w-0 gap-3 rounded-xl border border-zinc-200 p-4"
+                  >
+                    <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-pretty break-words text-sm font-medium leading-6 text-zinc-900">
+                        {question.text}
+                      </p>
+                      {question.topic ? (
+                        <p className="mt-1.5 truncate text-xs text-zinc-400">{question.topic}</p>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {generate.isError ? (
+              <Alert className="mt-4">
+                {generate.error instanceof ApiError
+                  ? generate.error.message
+                  : 'Question generation failed. Check that the API is running, then retry.'}
+              </Alert>
+            ) : null}
+          </CardContent>
+
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50">
+              <Link to="/goal" aria-disabled={busy || undefined}>
+                <ArrowLeft className="size-4" aria-hidden="true" />
+                Back to Goal
+              </Link>
+            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {visible.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => generate.mutate()}
+                  disabled={busy}
+                >
+                  {generate.isPending ? (
+                    <>
+                      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                      Regenerating…
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="size-4" aria-hidden="true" />
+                      Regenerate
+                    </>
+                  )}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                onClick={() =>
+                  visible.length > 0 ? startPractice.mutate() : generate.mutate()
+                }
+                disabled={busy}
+              >
+                {startPractice.isPending ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    Starting…
+                  </>
+                ) : generate.isPending ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    Creating…
+                  </>
+                ) : visible.length > 0 ? (
+                  <>
+                    Let’s Go, Champ
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </>
+                ) : (
+                  <>
+                    Generate Questions
+                    <Sparkles className="size-4" aria-hidden="true" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
     </AppShell>
   )

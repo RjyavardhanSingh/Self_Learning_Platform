@@ -1,16 +1,28 @@
 import { useMutation } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, LoaderCircle, RefreshCw, RotateCcw, Trophy } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  LoaderCircle,
+  RefreshCw,
+  RotateCcw,
+  Target,
+  Trophy,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { AppShell, ProgressDots, StepHeader } from '../components/layout/app-shell'
+import { AppShell, EmptyState, PageHeader } from '../components/layout/app-shell'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { api, ApiError, type Question, type SessionResults } from '../lib/api'
+import { Card, CardContent } from '../components/ui/card'
+import { api, ApiError, type Question, type SessionResults, type TopicBreakdown } from '../lib/api'
 import { cn } from '../lib/utils'
+
+const WEAK_THRESHOLD = 60
 
 function readResults(): SessionResults | null {
   const stored = window.sessionStorage.getItem('recall.results')
@@ -19,8 +31,48 @@ function readResults(): SessionResults | null {
 
 function scoreTone(score: number | null): string {
   if (score === null) return 'bg-zinc-100 text-zinc-500'
-  if (score > 60) return 'bg-zinc-950 text-white'
+  if (score > WEAK_THRESHOLD) return 'bg-zinc-950 text-white'
   return 'bg-amber-100 text-amber-900'
+}
+
+function isWeak(data: TopicBreakdown): boolean {
+  return data.status === 'needs_work' || data.average_score <= WEAK_THRESHOLD
+}
+
+function SectionCard({
+  icon,
+  title,
+  count,
+  children,
+  tone = 'default',
+}: {
+  icon: React.ReactNode
+  title: string
+  count?: number
+  children: React.ReactNode
+  tone?: 'default' | 'muted'
+}) {
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-4 p-5 pb-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            className={cn(
+              'shrink-0',
+              tone === 'muted' ? 'text-zinc-400' : 'text-zinc-950',
+            )}
+          >
+            {icon}
+          </span>
+          <h2 className="text-pretty truncate text-sm font-semibold tracking-tight">{title}</h2>
+        </div>
+        {typeof count === 'number' ? (
+          <Badge className="tabular shrink-0">{count}</Badge>
+        ) : null}
+      </div>
+      <CardContent className="p-5 pt-0">{children}</CardContent>
+    </Card>
+  )
 }
 
 export function ResultsPage() {
@@ -59,198 +111,273 @@ export function ResultsPage() {
   if (!results) {
     return (
       <AppShell>
-        <div className="mx-auto flex min-h-[65vh] max-w-xl flex-col items-center justify-center text-center">
-          <h1 className="text-3xl font-semibold tracking-[-0.04em]">No results yet.</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-500">
-            Complete a practice session to unlock your full report.
-          </p>
-          <Link to="/practice">
-            <Button className="mt-6">
-              Back to practice <ArrowRight className="size-4" />
+        <EmptyState
+          icon={<Trophy className="size-6" aria-hidden="true" />}
+          title="No Results Yet"
+          description="Complete a practice session to unlock your full report."
+          action={
+            <Button asChild>
+              <Link to="/practice">
+                Back to Practice
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
             </Button>
-          </Link>
-        </div>
+          }
+        />
       </AppShell>
     )
   }
 
   const answersByIndex = new Map(results.answers.map((a) => [a.question_index, a]))
-  const weakCount = results.weak_topics.length
+  const topics = Object.entries(results.topic_summary)
+  const strongTopics = topics.filter(([, data]) => !isWeak(data))
+  const weakTopics = topics.filter(([, data]) => isWeak(data))
+  const mixUps = Array.from(
+    new Set(topics.flatMap(([, data]) => data.misconceptions).map((m) => m.trim()).filter(Boolean)),
+  )
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl">
-        <StepHeader
-          eyebrow="Step 5 of 6 · Results"
-          title="Your full report."
-          description="Readiness score, every question's result, and exactly what to review next."
-        />
-        <div className="mt-8">
-          <ProgressDots current={5} />
+      <div className="flex h-full flex-col px-4 pb-5 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl">
+          <PageHeader
+            title="How You Did"
+            description="Your readiness score, what to fix next, and the mix-ups that kept showing up."
+          />
         </div>
 
-        <div className="mt-10 grid max-w-3xl gap-4">
-          <Card>
-            <CardContent>
-              <div className="flex items-center gap-5">
-                <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-zinc-950 text-2xl font-bold text-white">
-                  {results.readiness_score}
-                </span>
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 text-sm font-semibold">
-                    <Trophy className="size-4" /> Readiness score
-                  </p>
-                  {results.next_review_suggestion ? (
-                    <p className="mt-1 text-sm leading-6 text-zinc-500">{results.next_review_suggestion}</p>
-                  ) : null}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <CardTitle>Topics</CardTitle>
-                  <CardDescription className="mt-1">Where you stand per topic.</CardDescription>
-                </div>
-                <Badge>
-                  {weakCount === 0 ? 'All strong' : `${weakCount} to review`}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {Object.entries(results.topic_summary).map(([topic, data]) => (
-                  <div key={topic} className="rounded-xl border border-zinc-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold">{topic}</p>
-                      <span
-                        className={cn(
-                          'rounded-full px-2.5 py-1 text-[11px] font-bold',
-                          scoreTone(data.average_score),
-                        )}
-                      >
-                        {data.average_score}%
-                      </span>
-                    </div>
-                    {data.concepts_missed.length > 0 ? (
-                      <p className="mt-2 text-xs leading-5 text-zinc-500">
-                        Missed: {data.concepts_missed.join(', ')}
-                      </p>
-                    ) : null}
-                    {data.misconceptions.length > 0 ? (
-                      <p className="mt-1 text-xs leading-5 text-amber-800">
-                        Misconceptions: {data.misconceptions.join('; ')}
+        <div className="scroll-area mx-auto mt-5 min-h-0 w-full max-w-6xl flex-1">
+          <div className="grid items-start gap-4 pb-2 lg:grid-cols-2">
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="flex items-center gap-5 p-5">
+                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-zinc-950 text-2xl font-bold text-white">
+                    {results.readiness_score}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      <Trophy className="size-4 shrink-0" aria-hidden="true" />
+                      Readiness Score
+                    </p>
+                    {results.next_review_suggestion ? (
+                      <p className="text-pretty mt-1 text-sm leading-6 text-zinc-500">
+                        {results.next_review_suggestion}
                       </p>
                     ) : null}
                   </div>
-                ))}
-                {Object.keys(results.topic_summary).length === 0 ? (
-                  <p className="text-sm text-zinc-500">No topic breakdown available for this session.</p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Every question</CardTitle>
-              <CardDescription className="mt-1">Your answer, score, and feedback.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {results.questions.map((question: Question, position: number) => {
-                  const answer = answersByIndex.get(position)
-                  return (
-                    <details key={question.id ?? position} className="group rounded-xl border border-zinc-200">
-                      <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
-                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
-                          {position + 1}
+              <SectionCard
+                icon={<CheckCircle2 className="size-4" aria-hidden="true" />}
+                title="What’s Solid"
+                count={strongTopics.length}
+                tone={strongTopics.length === 0 ? 'muted' : 'default'}
+              >
+                {strongTopics.length === 0 ? (
+                  <p className="text-sm text-zinc-500">
+                    Nothing scored above {WEAK_THRESHOLD}% yet — everything needs work this round.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {strongTopics.map(([topic, data]) => (
+                      <li
+                        key={topic}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3.5 py-2.5"
+                      >
+                        <span className="min-w-0 truncate text-sm font-medium">{topic}</span>
+                        <span className="tabular shrink-0 text-sm font-semibold text-emerald-700">
+                          {data.average_score}%
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{question.text}</span>
-                        <span
-                          className={cn(
-                            'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold',
-                            scoreTone(answer?.score ?? null),
-                          )}
-                        >
-                          {answer?.score === null || answer?.score === undefined ? '…' : `${answer.score}%`}
-                        </span>
-                      </summary>
-                      <div className="border-t border-zinc-100 p-4 pt-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">You said</p>
-                        <p className="mt-1 text-sm leading-6 text-zinc-700">
-                          {answer?.answer_text || 'Skipped.'}
-                        </p>
-                        {answer?.feedback ? (
-                          <>
-                            <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              Feedback
-                            </p>
-                            <p className="mt-1 text-sm leading-6 text-zinc-700">{answer.feedback}</p>
-                          </>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </SectionCard>
+
+              <SectionCard
+                icon={<Target className="size-4" aria-hidden="true" />}
+                title="What to Fix"
+                count={weakTopics.length}
+              >
+                {weakTopics.length === 0 ? (
+                  <p className="text-sm text-zinc-500">
+                    Every topic cleared the {WEAK_THRESHOLD}% bar. Nice work.
+                  </p>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {weakTopics.map(([topic, data]) => (
+                      <li key={topic} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="min-w-0 truncate text-sm font-medium text-amber-950">
+                            {topic}
+                          </span>
+                          <span className="tabular shrink-0 text-sm font-semibold text-amber-800">
+                            {data.average_score}%
+                          </span>
+                        </div>
+                        {data.concepts_missed.length > 0 ? (
+                          <p className="text-pretty mt-2 text-xs leading-5 text-amber-900">
+                            <span className="font-semibold">Missed: </span>
+                            {data.concepts_missed.join(', ')}
+                          </p>
                         ) : null}
-                      </div>
-                    </details>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Retest</CardTitle>
-              <CardDescription className="mt-1">
-                Go clear your concepts and come back in some time — or take another shot right now.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {expired ? (
-                <Alert>
-                  This session&apos;s 24h review window has closed. Generate a fresh practice set to keep
-                  going.
-                </Alert>
-              ) : (
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    className="flex-1"
-                    disabled={retest.isPending || weakCount === 0}
-                    onClick={() => retest.mutate(true)}
-                  >
-                    {retest.isPending ? (
-                      <>
-                        <LoaderCircle className="size-4 animate-spin" /> Starting…
-                      </>
-                    ) : (
-                      <>
-                        <RotateCcw className="size-4" /> Retest weak areas
-                        {weakCount > 0 ? ` (${weakCount})` : ''}
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="secondary" disabled={retest.isPending} onClick={() => retest.mutate(false)}>
-                    <RefreshCw className="size-4" /> Full test again
-                  </Button>
-                </div>
-              )}
-              {retest.isError && !(retest.error instanceof ApiError && retest.error.status === 410) ? (
-                <Alert className="mt-4">
-                  {retest.error instanceof ApiError ? retest.error.message : 'Could not start retest.'}
-                </Alert>
+              {mixUps.length > 0 ? (
+                <SectionCard
+                  icon={<AlertTriangle className="size-4" aria-hidden="true" />}
+                  title="Common Mix-Ups We Noticed"
+                  count={mixUps.length}
+                >
+                  <ul className="space-y-2">
+                    {mixUps.map((mixUp) => (
+                      <li
+                        key={mixUp}
+                        className="text-pretty rounded-xl bg-zinc-50 px-3.5 py-2.5 text-sm leading-6 text-zinc-700"
+                      >
+                        {mixUp}
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
               ) : null}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        <Link
-          to="/preparing"
-          className="mt-8 inline-flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-950"
-        >
-          <ArrowLeft className="size-3.5" /> Back to preparing
-        </Link>
+            <div className="space-y-4">
+              <Card>
+                <div className="p-5 pb-3">
+                  <h2 className="text-sm font-semibold tracking-tight">Every Question</h2>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Open one to see what you said and the feedback.
+                  </p>
+                </div>
+                <CardContent className="p-5 pt-0">
+                  {results.questions.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No questions were recorded.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {results.questions.map((question: Question, position: number) => {
+                        const answer = answersByIndex.get(position)
+                        return (
+                          <li key={question.id ?? position}>
+                            <details className="group rounded-xl border border-zinc-200 transition-colors open:border-zinc-300">
+                              <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5">
+                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
+                                  {position + 1}
+                                </span>
+                                <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">
+                                  {question.text}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'tabular shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold',
+                                    scoreTone(answer?.score ?? null),
+                                  )}
+                                >
+                                  {answer?.score === null || answer?.score === undefined
+                                    ? '…'
+                                    : `${answer.score}%`}
+                                </span>
+                              </summary>
+                              <div className="border-t border-zinc-100 p-3.5">
+                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+                                  You Said
+                                </p>
+                                <p className="text-pretty mt-1 text-sm leading-6 text-zinc-700">
+                                  {answer?.answer_text || 'Skipped.'}
+                                </p>
+                                {answer?.feedback ? (
+                                  <>
+                                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+                                      Feedback
+                                    </p>
+                                    <p className="text-pretty mt-1 text-sm leading-6 text-zinc-700">
+                                      {answer.feedback}
+                                    </p>
+                                  </>
+                                ) : null}
+                              </div>
+                            </details>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <div className="p-5 pb-3">
+                  <h2 className="text-sm font-semibold tracking-tight">Retest</h2>
+                  <p className="text-pretty mt-1 text-xs text-zinc-500">
+                    Come back after the ideas settle — or take another shot right now.
+                  </p>
+                </div>
+                <CardContent className="p-5 pt-0">
+                  {expired ? (
+                    <Alert>
+                      This session’s 24-hour review window has closed. Generate a fresh practice set
+                      to keep going.
+                    </Alert>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        className="flex-1"
+                        disabled={retest.isPending || weakTopics.length === 0}
+                        onClick={() => retest.mutate(true)}
+                      >
+                        {retest.isPending ? (
+                          <>
+                            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                            Starting…
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw className="size-4" aria-hidden="true" />
+                            Retest Weak Areas
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={retest.isPending}
+                        onClick={() => retest.mutate(false)}
+                      >
+                        <RefreshCw className="size-4" aria-hidden="true" />
+                        Full Test Again
+                      </Button>
+                    </div>
+                  )}
+                  {weakTopics.length === 0 && !expired ? (
+                    <p className="mt-3 text-xs text-zinc-500">
+                      No weak areas to retest — every topic cleared the bar.
+                    </p>
+                  ) : null}
+                  {retest.isError &&
+                  !(retest.error instanceof ApiError && retest.error.status === 410) ? (
+                    <Alert className="mt-4">
+                      {retest.error instanceof ApiError
+                        ? retest.error.message
+                        : 'Could not start retest. Try again in a moment.'}
+                    </Alert>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              <Button asChild variant="ghost" size="sm" className="-ml-2 text-zinc-500">
+                <Link to="/preparing">
+                  <ArrowLeft className="size-3.5" aria-hidden="true" />
+                  Back to Preparing
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </AppShell>
   )
