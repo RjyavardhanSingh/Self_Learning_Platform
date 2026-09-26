@@ -2,24 +2,58 @@
 
 /* Self-hosted variable fonts. Fontsource emits @font-face with
    font-display: swap and per-subset unicode-ranges, so an English UI pulls
-   only the latin woff2 (~48 KB each) and nothing hits a third-party CDN. */
+   only the latin woff2 and nothing hits a third-party CDN. */
 @import "@fontsource-variable/inter/wght.css";
-@import "@fontsource-variable/inter-tight/wght.css";
+/* `full` exposes all four Fraunces axes (wght, opsz, SOFT, WONK). We drive
+   SOFT + WONK from CSS to get the warm-but-characterful cut; opsz stays on
+   font-optical-sizing: auto so large headlines tighten automatically. */
+@import "@fontsource-variable/fraunces/full.css";
 
 @theme {
-  /* Body + UI. Inter's tnum axis drives every score and timer in the app. */
+  /* ---- Type ---------------------------------------------------------- */
+  /* Body, UI, controls, every number in the app. */
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  /* Display. Inter Tight is cut tighter, which is exactly what the negative
-     tracking on headings (tracking-[-0.04em]) is asking for. */
-  --font-display: "Inter Tight Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Display. Fraunces is the voice: literary, warm, a little unusual. */
+  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+
+  /* ---- Neutrals: warm paper, never cool grey ------------------------- */
+  --color-canvas: #f7f5ef; /* page background — warm paper */
+  --color-surface: #ffffff; /* cards, inputs */
+  --color-sunk: #f1eee6; /* inset panels: record area, segmented track */
+  --color-line: #e6e2d8; /* hairline border */
+  --color-line-strong: #d5d0c2; /* emphasised border, dividers */
+
+  --color-ink: #1b1a17; /* primary text + dark surfaces (sidebar) */
+  --color-ink-soft: #45423c;
+  --color-ink-muted: #5f5b52; /* secondary text */
+  --color-ink-faint: #726e60; /* tertiary + placeholders — AA on canvas */
+
+  /* ---- Accent: exactly one hue (lavender), used sparingly ---------- */
+  /* The light lavender is a FILL colour — pair it with ink text, never
+     white. `accent-ink` is the same hue darkened far enough to be legible
+     as text or a border on light surfaces. */
+  --color-accent: #d9c6f7; /* fills: primary button, active pill */
+  --color-accent-hover: #cbb2f2; /* one step deeper, still a light fill */
+  --color-accent-ink: #5530bd; /* accent text, links, icon strokes */
+  --color-accent-tint: #f1eafd; /* washes: hero glow, badge fill */
+  --color-accent-edge: #c3aaf0; /* accent borders and rules */
+
+  /* ---- Semantic: only where colour carries meaning ------------------- */
+  --color-good: #2e6a4e;
+  --color-good-tint: #e6f0e9;
+  --color-warn: #8a5d14;
+  --color-warn-tint: #f8eedc;
+  --color-bad: #a03328;
+  --color-bad-tint: #f8e9e6;
+
   --radius-xl: 0.875rem;
   --radius-2xl: 1.125rem;
 }
 
 :root {
   font-family: var(--font-sans);
-  color: #18181b;
-  background: #f7f7f5;
+  color: var(--color-ink);
+  background: var(--color-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -29,16 +63,25 @@
 
 * {
   box-sizing: border-box;
-  border-color: #e4e4e7;
+  border-color: var(--color-line);
 }
 
-/* Headings get the display cut globally, so no component needs to opt in. */
-h1,
-h2,
-h3,
-h4 {
-  font-family: var(--font-display);
-  font-weight: 600;
+@layer base {
+  /* Fraunces carries the personality. SOFT rounds the terminals so it reads
+     calm rather than sharp; WONK adds the slight asymmetry that keeps it from
+     looking like a generic book serif. Tune SOFT 0–100, WONK 0–1. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variation-settings: "SOFT" 40, "WONK" 1;
+    font-weight: 600;
+  }
+
+  h3,
+  h4 {
+    font-family: var(--font-sans);
+  }
 }
 
 html {
@@ -68,7 +111,7 @@ label {
 
 /* One consistent focus ring across the app. Never remove it. */
 :focus-visible {
-  outline: 2px solid #18181b;
+  outline: 2px solid var(--color-ink);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -78,7 +121,7 @@ label {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: #d4d4d8 transparent;
+  scrollbar-color: var(--color-line-strong) transparent;
 }
 
 .scroll-area::-webkit-scrollbar {
@@ -86,14 +129,14 @@ label {
 }
 
 .scroll-area::-webkit-scrollbar-thumb {
-  background-color: #d4d4d8;
+  background-color: var(--color-line-strong);
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 
 .scroll-area::-webkit-scrollbar-thumb:hover {
-  background-color: #a1a1aa;
+  background-color: var(--color-ink-faint);
 }
 
 /* Numerals line up in score columns and countdowns. */
@@ -102,8 +145,8 @@ label {
 }
 
 ::selection {
-  color: #fff;
-  background: #18181b;
+  color: var(--color-ink);
+  background: var(--color-accent);
 }
 
 /* Respect the OS "reduce motion" setting for every animation we ship. */

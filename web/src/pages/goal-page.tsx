@@ -117,7 +117,7 @@ export function GoalPage() {
                   placeholder="Biology · Cell respiration"
                 />
                 {subjectError ? (
-                  <p id="subject-error" className="text-xs text-red-600">
+                  <p id="subject-error" className="text-xs text-bad">
                     {subjectError.message}
                   </p>
                 ) : null}
@@ -134,14 +134,14 @@ export function GoalPage() {
                   placeholder="Explain how cells create energy"
                 />
                 {targetError ? (
-                  <p id="target-error" className="text-xs text-red-600">
+                  <p id="target-error" className="text-xs text-bad">
                     {targetError.message}
                   </p>
                 ) : null}
               </div>
 
               <fieldset className="space-y-2.5">
-                <legend className="mb-2 text-sm font-medium text-zinc-800">
+                <legend className="mb-2 text-sm font-medium text-ink-soft">
                   How Familiar Is This?
                 </legend>
                 <div className="grid gap-2">
@@ -153,21 +153,21 @@ export function GoalPage() {
                         className={cn(
                           'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors duration-150',
                           selected
-                            ? 'border-zinc-950 bg-zinc-50'
-                            : 'border-zinc-200 hover:border-zinc-400',
+                            ? 'border-ink bg-sunk'
+                            : 'border-line hover:border-ink-faint',
                         )}
                       >
                         <input
                           type="radio"
                           value={option.value}
                           {...form.register('level')}
-                          className="size-4 shrink-0 accent-zinc-950"
+                          className="size-4 shrink-0 accent-ink"
                         />
                         <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-zinc-900">
+                          <span className="block text-sm font-semibold text-ink">
                             {option.title}
                           </span>
-                          <span className="mt-0.5 block text-xs text-zinc-500">{option.text}</span>
+                          <span className="mt-0.5 block text-xs text-ink-muted">{option.text}</span>
                         </span>
                       </label>
                     )
@@ -178,7 +178,7 @@ export function GoalPage() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="deadline">
-                    Deadline <span className="font-normal text-zinc-400">(optional)</span>
+                    Deadline <span className="font-normal text-ink-faint">(optional)</span>
                   </Label>
                   <Input id="deadline" type="date" {...form.register('deadline')} />
                 </div>
@@ -199,7 +199,7 @@ export function GoalPage() {
             </form>
           </CardContent>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-sunk p-5 sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost">
               <Link to="/upload">
                 <ArrowLeft className="size-4" aria-hidden="true" />

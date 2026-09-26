@@ -6,7 +6,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cn(
-        'flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-3.5 text-sm text-zinc-950 transition-colors placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-950 focus:outline-none focus:ring-2 focus:ring-zinc-950/10 disabled:cursor-not-allowed disabled:bg-zinc-50 aria-[invalid=true]:border-red-400',
+        'flex h-11 w-full rounded-xl border border-line-strong bg-surface px-3.5 text-sm text-ink transition-colors placeholder:text-ink-faint hover:border-line-strong focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10 disabled:cursor-not-allowed disabled:bg-sunk aria-[invalid=true]:border-bad',
         className,
       )}
       {...props}
@@ -18,7 +18,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={cn(
-        'flex w-full resize-y rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm leading-6 text-zinc-950 transition-colors placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-950 focus:outline-none focus:ring-2 focus:ring-zinc-950/10 disabled:cursor-not-allowed disabled:bg-zinc-50 aria-[invalid=true]:border-red-400',
+        'flex w-full resize-y rounded-xl border border-line-strong bg-surface px-3.5 py-3 text-sm leading-6 text-ink transition-colors placeholder:text-ink-faint hover:border-line-strong focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10 disabled:cursor-not-allowed disabled:bg-sunk aria-[invalid=true]:border-bad',
         className,
       )}
       {...props}

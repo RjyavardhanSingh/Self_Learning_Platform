@@ -116,7 +116,7 @@ export function UploadPage() {
 
         <Card className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden">
           <CardHeader className="shrink-0 p-5">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1">
+            <div className="grid grid-cols-2 gap-1 rounded-full bg-sunk p-1">
               {(['text', 'pdf'] as UploadMode[]).map((option) => {
                 const selected = mode === option
                 return (
@@ -126,10 +126,10 @@ export function UploadPage() {
                     aria-pressed={selected}
                     onClick={() => selectMode(option)}
                     className={cn(
-                      'rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-150',
+                      'rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-150',
                       selected
-                        ? 'bg-white text-zinc-950 shadow-sm'
-                        : 'text-zinc-500 hover:text-zinc-900',
+                        ? 'bg-surface text-ink shadow-sm'
+                        : 'text-ink-muted hover:text-ink',
                     )}
                   >
                     {option === 'text' ? 'Paste Text' : 'Upload PDF'}
@@ -154,7 +154,7 @@ export function UploadPage() {
                     placeholder="biology-notes.md"
                   />
                   {nameError ? (
-                    <p id="material-name-error" className="text-xs text-red-600">
+                    <p id="material-name-error" className="text-xs text-bad">
                       {nameError.message}
                     </p>
                   ) : null}
@@ -163,7 +163,7 @@ export function UploadPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <Label htmlFor="material-content">Your Notes</Label>
-                    <span className="tabular text-xs text-zinc-400">
+                    <span className="tabular text-xs text-ink-faint">
                       {content.length.toLocaleString()} / {CHARACTER_LIMIT.toLocaleString()}
                     </span>
                   </div>
@@ -177,7 +177,7 @@ export function UploadPage() {
                     className="h-full min-h-40 resize-none"
                   />
                   {contentError ? (
-                    <p id="material-content-error" className="text-xs text-red-600">
+                    <p id="material-content-error" className="text-xs text-bad">
                       {contentError.message}
                     </p>
                   ) : null}
@@ -188,7 +188,7 @@ export function UploadPage() {
                         shouldDirty: true,
                       })
                     }
-                    className="text-xs font-semibold text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-950"
+                    className="text-xs font-semibold text-ink-muted underline underline-offset-4 transition-colors hover:text-ink"
                   >
                     {kind === 'text' ? 'Save as Markdown' : 'Save as Plain Text'}
                   </button>
@@ -212,31 +212,31 @@ export function UploadPage() {
                     event.preventDefault()
                     selectFile(event.dataTransfer.files?.[0])
                   }}
-                  className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-5 py-8 text-center transition-colors duration-150 hover:border-zinc-500 hover:bg-zinc-100"
+                  className="flex min-h-48 flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-sunk px-5 py-8 text-center transition-colors duration-150 hover:border-ink-muted hover:bg-sunk"
                 >
-                  <span className="grid size-12 place-items-center rounded-2xl bg-white shadow-sm">
-                    <UploadCloud className="size-5 text-zinc-500" aria-hidden="true" />
+                  <span className="grid size-12 place-items-center rounded-2xl bg-surface shadow-sm">
+                    <UploadCloud className="size-5 text-ink-muted" aria-hidden="true" />
                   </span>
-                  <span className="mt-5 text-sm font-semibold text-zinc-900">
+                  <span className="mt-5 text-sm font-semibold text-ink">
                     Drop Your PDF Here
                   </span>
-                  <span className="mt-1 text-xs text-zinc-500">
+                  <span className="mt-1 text-xs text-ink-muted">
                     or press Enter to browse · max 25&nbsp;MB
                   </span>
                 </button>
                 {file ? (
-                  <div className="mt-4 flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
-                    <FileText className="size-5 shrink-0 text-zinc-500" aria-hidden="true" />
+                  <div className="mt-4 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+                    <FileText className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{file.name}</p>
-                      <p className="tabular text-xs text-zinc-400">
+                      <p className="tabular text-xs text-ink-faint">
                         {(file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setFile(null)}
-                      className="shrink-0 rounded-lg p-1 text-zinc-400 transition-colors hover:text-zinc-950"
+                      className="shrink-0 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
                       aria-label={`Remove ${file.name}`}
                     >
                       <X className="size-4" aria-hidden="true" />
@@ -249,10 +249,10 @@ export function UploadPage() {
             {error ? <Alert className="mt-5">{error}</Alert> : null}
             {material ? (
               <div
-                className="mt-5 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+                className="mt-5 flex items-center gap-3 rounded-xl border border-good-tint bg-good-tint px-4 py-3 text-sm text-good"
                 role="status"
               >
-                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-good text-white">
                   <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
                 </span>
                 <span className="min-w-0">
@@ -264,7 +264,7 @@ export function UploadPage() {
             ) : null}
           </CardContent>
 
-          <div className="shrink-0 space-y-2 border-t border-zinc-100 p-5">
+          <div className="shrink-0 space-y-2 border-t border-sunk p-5">
             {material ? (
               <Button className="w-full" size="lg" onClick={() => navigate('/goal')}>
                 Continue to Your Goal

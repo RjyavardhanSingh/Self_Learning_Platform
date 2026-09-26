@@ -38,14 +38,14 @@ function useActiveStep() {
 function Brand() {
   return (
     <NavLink to="/" className="flex items-center gap-3 text-white">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-zinc-950">
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface text-ink">
         <Sparkles className="size-4" strokeWidth={2.5} aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-bold tracking-tight">recall</span>
-        <span className="block text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-400">
-          Learn out loud
+        <span className="block font-display text-[17px] font-semibold leading-none tracking-tight">
+          recall
         </span>
+
       </span>
     </NavLink>
   )
@@ -60,14 +60,14 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   })
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-zinc-950 px-4 py-5 text-white lg:w-[248px] lg:shrink-0 xl:w-[264px]">
+    <aside className="flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-ink px-4 py-5 text-white lg:w-[248px] lg:shrink-0 xl:w-[264px]">
       <div className="flex items-center justify-between gap-2">
         <Brand />
         {onClose ? (
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-400 hover:bg-white/10 hover:text-white focus-visible:ring-white lg:hidden"
+            className="text-white/60 hover:bg-white/10 hover:text-white focus-visible:ring-white lg:hidden"
             onClick={onClose}
           >
             <X className="size-5" aria-hidden="true" />
@@ -77,7 +77,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <nav className="mt-9 flex-1" aria-label="Main">
-        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
           Your Journey
         </p>
         <ul className="space-y-1">
@@ -92,10 +92,10 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                   onClick={onClose}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-150',
+                    'group flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm transition-colors duration-150',
                     isActive
-                      ? 'bg-white text-zinc-950'
-                      : 'text-zinc-400 hover:bg-white/10 hover:text-white',
+                      ? 'bg-surface text-ink'
+                      : 'text-white/55 hover:bg-white/10 hover:text-white',
                   )}
                 >
                   {({ isActive: navActive }) => (
@@ -107,7 +107,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                       />
                       <span className="min-w-0 flex-1 truncate">{step.label}</span>
                       {isDone ? (
-                        <Check className="size-3.5 shrink-0 text-emerald-400" strokeWidth={3} aria-hidden="true" />
+                        <Check className="size-3.5 shrink-0 text-white/60" strokeWidth={3} aria-hidden="true" />
                       ) : isActive ? (
                         <ArrowRight className="size-3.5 shrink-0" aria-hidden="true" />
                       ) : null}
@@ -121,25 +121,25 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
       </nav>
 
       <div className="mt-8 space-y-3 border-t border-white/10 pt-5">
-        <p className="flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+        <p className="flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
           <span
             aria-hidden="true"
             className={cn(
               'size-1.5 shrink-0 rounded-full',
-              isLoading ? 'bg-amber-300' : health ? 'bg-emerald-400' : 'bg-red-400',
+              isLoading ? 'bg-warn-tint' : health ? 'bg-white' : 'bg-bad',
             )}
           />
           <span className="truncate">
             {isLoading ? 'Checking API' : health ? 'API Connected' : 'API Offline'}
           </span>
         </p>
-        <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-800 text-xs font-semibold">
+        <div className="flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
             You
           </span>
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-zinc-200">Personal Workspace</p>
-            <p className="truncate text-[11px] text-zinc-500">Local session</p>
+            <p className="truncate text-xs font-semibold text-white/85">Personal Workspace</p>
+            <p className="truncate text-[11px] text-white/50">Local session</p>
           </div>
         </div>
       </div>
@@ -166,10 +166,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mobileOpen])
 
   return (
-    <div className="h-dvh overflow-hidden bg-[#f7f7f5] text-zinc-950">
+    <div className="h-dvh overflow-hidden bg-canvas text-ink">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-zinc-950 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
         Skip to main content
       </a>
@@ -184,7 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               aria-label="Close Navigation"
-              className="absolute inset-0 bg-zinc-950/50"
+              className="absolute inset-0 bg-ink/50"
               onClick={() => setMobileOpen(false)}
             />
             <div
@@ -199,7 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
 
         <main id="main-content" className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200/80 bg-white/90 px-4 backdrop-blur sm:px-6 lg:hidden">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-line/80 bg-white/90 px-4 backdrop-blur sm:px-6 lg:hidden">
             <Brand />
             <Button
               variant="secondary"
@@ -234,11 +234,11 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="min-w-0 max-w-2xl">
-        <h1 className="text-pretty text-2xl font-semibold tracking-[-0.03em] text-zinc-950 sm:text-[28px] sm:leading-tight">
+        <h1 className="text-pretty text-2xl font-semibold tracking-[-0.03em] text-ink sm:text-[28px] sm:leading-tight">
           {title}
         </h1>
         {description ? (
-          <p className="text-pretty mt-1.5 text-sm leading-6 text-zinc-500">{description}</p>
+          <p className="text-pretty mt-1.5 text-sm leading-6 text-ink-muted">{description}</p>
         ) : null}
       </div>
       {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
@@ -248,7 +248,7 @@ export function PageHeader({
 
 export function LoadingState({ label = 'Loading your workspace…' }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500" role="status">
+    <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-muted" role="status">
       <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
       {label}
     </div>
@@ -269,14 +269,14 @@ export function EmptyState({
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 py-12 text-center">
       {icon ? (
-        <div className="grid size-14 place-items-center rounded-2xl bg-zinc-950 text-white">
+        <div className="grid size-14 place-items-center rounded-2xl bg-ink text-white">
           {icon}
         </div>
       ) : null}
       <h1 className="text-pretty mt-6 max-w-md text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
         {title}
       </h1>
-      <p className="text-pretty mt-3 max-w-sm text-sm leading-6 text-zinc-500">{description}</p>
+      <p className="text-pretty mt-3 max-w-sm text-sm leading-6 text-ink-muted">{description}</p>
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
   )

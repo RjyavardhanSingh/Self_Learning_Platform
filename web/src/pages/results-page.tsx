@@ -30,9 +30,9 @@ function readResults(): SessionResults | null {
 }
 
 function scoreTone(score: number | null): string {
-  if (score === null) return 'bg-zinc-100 text-zinc-500'
-  if (score > WEAK_THRESHOLD) return 'bg-zinc-950 text-white'
-  return 'bg-amber-100 text-amber-900'
+  if (score === null) return 'bg-sunk text-ink-muted'
+  if (score > WEAK_THRESHOLD) return 'bg-ink text-white'
+  return 'bg-warn-tint text-warn'
 }
 
 function isWeak(data: TopicBreakdown): boolean {
@@ -59,7 +59,7 @@ function SectionCard({
           <span
             className={cn(
               'shrink-0',
-              tone === 'muted' ? 'text-zinc-400' : 'text-zinc-950',
+              tone === 'muted' ? 'text-ink-faint' : 'text-ink',
             )}
           >
             {icon}
@@ -151,7 +151,7 @@ export function ResultsPage() {
             <div className="space-y-4">
               <Card>
                 <CardContent className="flex items-center gap-5 p-5">
-                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-zinc-950 text-2xl font-bold text-white">
+                  <span className="tabular grid size-16 shrink-0 place-items-center rounded-2xl bg-ink text-2xl font-bold text-white">
                     {results.readiness_score}
                   </span>
                   <div className="min-w-0">
@@ -160,7 +160,7 @@ export function ResultsPage() {
                       Readiness Score
                     </p>
                     {results.next_review_suggestion ? (
-                      <p className="text-pretty mt-1 text-sm leading-6 text-zinc-500">
+                      <p className="text-pretty mt-1 text-sm leading-6 text-ink-muted">
                         {results.next_review_suggestion}
                       </p>
                     ) : null}
@@ -175,7 +175,7 @@ export function ResultsPage() {
                 tone={strongTopics.length === 0 ? 'muted' : 'default'}
               >
                 {strongTopics.length === 0 ? (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-ink-muted">
                     Nothing scored above {WEAK_THRESHOLD}% yet — everything needs work this round.
                   </p>
                 ) : (
@@ -183,10 +183,10 @@ export function ResultsPage() {
                     {strongTopics.map(([topic, data]) => (
                       <li
                         key={topic}
-                        className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3.5 py-2.5"
+                        className="flex items-center justify-between gap-3 rounded-xl bg-sunk px-3.5 py-2.5"
                       >
                         <span className="min-w-0 truncate text-sm font-medium">{topic}</span>
-                        <span className="tabular shrink-0 text-sm font-semibold text-emerald-700">
+                        <span className="tabular shrink-0 text-sm font-semibold text-good">
                           {data.average_score}%
                         </span>
                       </li>
@@ -201,23 +201,23 @@ export function ResultsPage() {
                 count={weakTopics.length}
               >
                 {weakTopics.length === 0 ? (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-ink-muted">
                     Every topic cleared the {WEAK_THRESHOLD}% bar. Nice work.
                   </p>
                 ) : (
                   <ul className="space-y-2.5">
                     {weakTopics.map(([topic, data]) => (
-                      <li key={topic} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+                      <li key={topic} className="rounded-xl border border-warn-tint bg-warn-tint/60 p-3.5">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="min-w-0 truncate text-sm font-medium text-amber-950">
+                          <span className="min-w-0 truncate text-sm font-medium text-warn">
                             {topic}
                           </span>
-                          <span className="tabular shrink-0 text-sm font-semibold text-amber-800">
+                          <span className="tabular shrink-0 text-sm font-semibold text-warn">
                             {data.average_score}%
                           </span>
                         </div>
                         {data.concepts_missed.length > 0 ? (
-                          <p className="text-pretty mt-2 text-xs leading-5 text-amber-900">
+                          <p className="text-pretty mt-2 text-xs leading-5 text-warn">
                             <span className="font-semibold">Missed: </span>
                             {data.concepts_missed.join(', ')}
                           </p>
@@ -238,7 +238,7 @@ export function ResultsPage() {
                     {mixUps.map((mixUp) => (
                       <li
                         key={mixUp}
-                        className="text-pretty rounded-xl bg-zinc-50 px-3.5 py-2.5 text-sm leading-6 text-zinc-700"
+                        className="text-pretty rounded-xl bg-sunk px-3.5 py-2.5 text-sm leading-6 text-ink-soft"
                       >
                         {mixUp}
                       </li>
@@ -252,22 +252,22 @@ export function ResultsPage() {
               <Card>
                 <div className="p-5 pb-3">
                   <h2 className="text-sm font-semibold tracking-tight">Every Question</h2>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-ink-muted">
                     Open one to see what you said and the feedback.
                   </p>
                 </div>
                 <CardContent className="p-5 pt-0">
                   {results.questions.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No questions were recorded.</p>
+                    <p className="text-sm text-ink-muted">No questions were recorded.</p>
                   ) : (
                     <ul className="space-y-2">
                       {results.questions.map((question: Question, position: number) => {
                         const answer = answersByIndex.get(position)
                         return (
                           <li key={question.id ?? position}>
-                            <details className="group rounded-xl border border-zinc-200 transition-colors open:border-zinc-300">
+                            <details className="group rounded-xl border border-line transition-colors open:border-line-strong">
                               <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5">
-                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
+                                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-white">
                                   {position + 1}
                                 </span>
                                 <span className="text-pretty min-w-0 flex-1 text-sm font-medium leading-6">
@@ -284,19 +284,19 @@ export function ResultsPage() {
                                     : `${answer.score}%`}
                                 </span>
                               </summary>
-                              <div className="border-t border-zinc-100 p-3.5">
-                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+                              <div className="border-t border-sunk p-3.5">
+                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
                                   You Said
                                 </p>
-                                <p className="text-pretty mt-1 text-sm leading-6 text-zinc-700">
+                                <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
                                   {answer?.answer_text || 'Skipped.'}
                                 </p>
                                 {answer?.feedback ? (
                                   <>
-                                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+                                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
                                       Feedback
                                     </p>
-                                    <p className="text-pretty mt-1 text-sm leading-6 text-zinc-700">
+                                    <p className="text-pretty mt-1 text-sm leading-6 text-ink-soft">
                                       {answer.feedback}
                                     </p>
                                   </>
@@ -314,7 +314,7 @@ export function ResultsPage() {
               <Card>
                 <div className="p-5 pb-3">
                   <h2 className="text-sm font-semibold tracking-tight">Retest</h2>
-                  <p className="text-pretty mt-1 text-xs text-zinc-500">
+                  <p className="text-pretty mt-1 text-xs text-ink-muted">
                     Come back after the ideas settle — or take another shot right now.
                   </p>
                 </div>
@@ -354,7 +354,7 @@ export function ResultsPage() {
                     </div>
                   )}
                   {weakTopics.length === 0 && !expired ? (
-                    <p className="mt-3 text-xs text-zinc-500">
+                    <p className="mt-3 text-xs text-ink-muted">
                       No weak areas to retest — every topic cleared the bar.
                     </p>
                   ) : null}
@@ -369,7 +369,7 @@ export function ResultsPage() {
                 </CardContent>
               </Card>
 
-              <Button asChild variant="ghost" size="sm" className="-ml-2 text-zinc-500">
+              <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted">
                 <Link to="/preparing">
                   <ArrowLeft className="size-3.5" aria-hidden="true" />
                   Back to Preparing

@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Label } from '../components/ui/label'
+import { Waveform } from '../components/ui/waveform'
 import { api, ApiError, type PracticeSession, type Question } from '../lib/api'
 import { formatClock, useVoiceAnswer } from '../lib/use-voice-answer'
 
@@ -33,20 +34,20 @@ const QuestionCard = memo(function QuestionCard({
   total: number
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-purple-400 p-5">
+    <div className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-4">
-        <p className="tabular text-xs font-bold uppercase tracking-[0.16em] text-black-500">
+        <p className="tabular text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
           Question {position} of {total}
         </p>
         {question.topic ? (
           <Badge className="shrink-0 normal-case tracking-normal">{question.topic}</Badge>
         ) : null}
       </div>
-      <p className="text-pretty mt-3 text-lg font-medium leading-8 text-black-900">
+      <p className="text-pretty mt-3 text-lg font-medium leading-8 text-ink">
         {question.text}
       </p>
       {question.previous_attempt ? (
-        <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+        <div className="mt-4 rounded-xl bg-warn-tint p-4 text-sm leading-6 text-warn">
           Last time you scored{' '}
           <span className="tabular font-semibold">{question.previous_attempt.score}%</span> — missed:{' '}
           {question.previous_attempt.concepts_missed.length > 0
@@ -164,26 +165,27 @@ export function PracticePage() {
             {!done && question ? <QuestionCard question={question} position={index + 1} total={total} /> : null}
 
             {!done && question ? (
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-5">
+              <div className="rounded-2xl border border-line bg-sunk/60 p-5">
                 {voice.phase === 'idle' && draft === null && !submit.isPending ? (
                   <div className="flex flex-col items-center py-4 text-center">
                     <Button
+                      variant="accent"
                       size="icon"
-                      className="size-16 rounded-full"
+                      className="size-20"
                       onClick={() => voice.start()}
                     >
-                      <Mic className="size-6" aria-hidden="true" />
+                      <Mic className="size-7" aria-hidden="true" />
                       <span className="sr-only">Answer by speaking</span>
                     </Button>
-                    <p className="mt-4 text-sm font-semibold">Answer It</p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-5 text-base font-semibold">Answer It</p>
+                    <p className="mt-1 text-xs text-ink-muted">
                       Tap the mic, speak your answer, then stop.
                     </p>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="mt-4 text-zinc-500"
+                      className="mt-4 text-ink-muted"
                       onClick={() => submit.mutate({ answer_text: '', skipped: true })}
                     >
                       <SkipForward className="size-3.5" aria-hidden="true" />
@@ -194,7 +196,7 @@ export function PracticePage() {
 
                 {voice.phase === 'connecting' ? (
                   <p
-                    className="flex items-center gap-2 rounded-xl bg-white p-4 text-sm text-zinc-500"
+                    className="flex items-center gap-2 rounded-xl bg-surface p-4 text-sm text-ink-muted"
                     role="status"
                   >
                     <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -206,25 +208,30 @@ export function PracticePage() {
                   <div>
                     <div className="flex items-center justify-between gap-4">
                       <p
-                        className="flex items-center gap-2 text-sm font-semibold text-red-600"
+                        className="flex items-center gap-2 text-sm font-semibold text-bad"
                         role="status"
                       >
-                        <span className="size-2 animate-pulse rounded-full bg-red-500" aria-hidden="true" />
+                        <span className="size-2 animate-pulse rounded-full bg-bad" aria-hidden="true" />
                         Listening…
                       </p>
-                      <p className="tabular flex items-center gap-1.5 text-xs text-zinc-500">
+                      <p className="tabular flex items-center gap-1.5 text-xs text-ink-muted">
                         <Clock className="size-3.5" aria-hidden="true" />
                         {formatClock(voice.elapsedSecs)} /{' '}
                         {formatClock(voice.elapsedSecs + voice.remainingSecs)}
                       </p>
                     </div>
+                    {/* Signature voice mark, from the reference. Decorative:
+                        the transcript below carries the real announcement. */}
+                    <div className="mt-4 flex h-14 items-center justify-center text-bad">
+                      <Waveform active className="h-full w-40" />
+                    </div>
                     <p
-                      className="mt-4 min-h-16 text-sm leading-6 text-zinc-700"
+                      className="mt-4 min-h-16 text-sm leading-6 text-ink-soft"
                       aria-live="polite"
                       aria-atomic="true"
                     >
                       {voice.committed ? `${voice.committed} ` : null}
-                      <span className="text-zinc-400">{voice.partial}</span>
+                      <span className="text-ink-faint">{voice.partial}</span>
                       {!voice.committed && !voice.partial ? 'Speak now…' : null}
                     </p>
                     <Button className="mt-4 w-full" onClick={handleStop}>
@@ -257,7 +264,7 @@ export function PracticePage() {
                       onChange={(event) => setDraft(event.target.value)}
                       rows={5}
                       maxLength={12000}
-                      className="w-full resize-y rounded-xl border border-zinc-200 bg-white p-4 text-sm leading-6 text-zinc-900 transition-colors placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-950 focus:outline-none focus:ring-2 focus:ring-zinc-950/10"
+                      className="w-full resize-y rounded-xl border border-line bg-surface p-4 text-sm leading-6 text-ink transition-colors placeholder:text-ink-faint hover:border-line-strong focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10"
                     />
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
@@ -295,9 +302,9 @@ export function PracticePage() {
             ) : null}
 
             {done ? (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <div className="rounded-2xl border border-line bg-surface p-5">
                 <h2 className="text-base font-semibold tracking-tight">All Questions Answered</h2>
-                <p className="text-pretty mt-1.5 text-sm leading-6 text-zinc-500">
+                <p className="text-pretty mt-1.5 text-sm leading-6 text-ink-muted">
                   {pendingCount > 0
                     ? `Finishing ${pendingCount} background ${
                         pendingCount === 1 ? 'score' : 'scores'
@@ -333,8 +340,8 @@ export function PracticePage() {
             ) : null}
           </CardContent>
 
-          <div className="shrink-0 border-t border-zinc-100 p-5">
-            <Button asChild variant="ghost" size="sm" className="-ml-2 text-zinc-500">
+          <div className="shrink-0 border-t border-sunk p-5">
+            <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-muted">
               <Link to="/preparing">
                 <ArrowLeft className="size-3.5" aria-hidden="true" />
                 Back to Preparing

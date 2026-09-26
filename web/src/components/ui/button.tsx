@@ -5,21 +5,22 @@ import type { ButtonHTMLAttributes } from 'react'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  // transition-colors, not transition-all: only paint properties animate.
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
+  // Pill shape + transition-colors (never transition-all): only paint animates.
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default: 'bg-zinc-950 text-white hover:bg-zinc-800',
-        secondary: 'border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50',
-        ghost: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950',
+        default: 'bg-ink text-white hover:bg-ink-soft',
+        accent: 'border border-accent-edge bg-accent text-ink hover:bg-accent-hover',
+        secondary: 'border border-line-strong bg-surface text-ink hover:bg-sunk',
+        ghost: 'text-ink-muted hover:bg-sunk hover:text-ink',
         light: 'bg-white/10 text-white hover:bg-white/20',
       },
       size: {
-        default: 'h-11 px-5',
-        sm: 'h-9 rounded-lg px-3.5 text-xs',
-        lg: 'h-13 rounded-2xl px-6 text-base',
-        icon: 'size-10 rounded-xl',
+        default: 'h-11 px-6',
+        sm: 'h-9 px-4 text-xs',
+        lg: 'h-13 px-7 text-base',
+        icon: 'size-10',
       },
     },
     defaultVariants: {

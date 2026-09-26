@@ -93,7 +93,7 @@ export function PreparingPage() {
           <CardContent className="scroll-area min-h-0 flex-1 p-5">
             {isLoading ? (
               <p
-                className="flex items-center gap-2 text-sm text-zinc-500"
+                className="flex items-center gap-2 text-sm text-ink-muted"
                 role="status"
               >
                 <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -102,14 +102,14 @@ export function PreparingPage() {
             ) : null}
 
             {!isLoading && visible.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 p-8 text-center">
-                <span className="grid size-11 place-items-center rounded-2xl bg-zinc-100">
-                  <Sparkles className="size-5 text-zinc-500" aria-hidden="true" />
+              <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong p-8 text-center">
+                <span className="grid size-11 place-items-center rounded-2xl bg-sunk">
+                  <Sparkles className="size-5 text-ink-muted" aria-hidden="true" />
                 </span>
                 <p className="text-pretty mt-4 text-sm font-semibold">
                   Your questions will appear here.
                 </p>
-                <p className="text-pretty mt-2 max-w-xs text-xs leading-5 text-zinc-500">
+                <p className="text-pretty mt-2 max-w-xs text-xs leading-5 text-ink-muted">
                   Generate a small practice set based on your material and goal.
                 </p>
               </div>
@@ -120,17 +120,17 @@ export function PreparingPage() {
                 {visible.map((question, index) => (
                   <li
                     key={question.id ?? `${question.text}-${index}`}
-                    className="flex min-w-0 gap-3 rounded-xl border border-zinc-200 p-4"
+                    className="flex min-w-0 gap-3 rounded-xl border border-line p-4"
                   >
-                    <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
+                    <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-white">
                       {index + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-pretty break-words text-sm font-medium leading-6 text-zinc-900">
+                      <p className="text-pretty break-words text-sm font-medium leading-6 text-ink">
                         {question.text}
                       </p>
                       {question.topic ? (
-                        <p className="mt-1.5 truncate text-xs text-zinc-400">{question.topic}</p>
+                        <p className="mt-1.5 truncate text-xs text-ink-faint">{question.topic}</p>
                       ) : null}
                     </div>
                   </li>
@@ -147,7 +147,7 @@ export function PreparingPage() {
             ) : null}
           </CardContent>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-sunk p-5 sm:flex-row sm:items-center sm:justify-between">
             <Button asChild variant="ghost" className="disabled:pointer-events-none disabled:opacity-50">
               <Link to="/goal" aria-disabled={busy || undefined}>
                 <ArrowLeft className="size-4" aria-hidden="true" />
