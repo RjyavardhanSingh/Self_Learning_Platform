@@ -74,33 +74,27 @@ uv sync --group dev  # install dev dependencies (pytest, ruff)
 
 ## Environment Variables
 
-Create a `.env` file:
+Copy the template and fill it in — it lists every variable the code reads, with the source module for each:
 
+```bash
+cp .env.example .env
 ```
-DATABASE_URL=postgresql://...
-DRAGONFLY_URL=redis://:password@localhost:6380
-DRAGONFLY_PASSWORD=your_password
 
-# Neon Object Storage (S3-compatible)
-AWS_ENDPOINT_URL_S3=https://...
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-east-2
-NEON_STORAGE_BUCKET=materials
+Required:
 
-# LLM (OpenRouter) — required for question generation + scoring
-OPENROUTER_API_KEY=sk-or-...
-# STT (ElevenLabs Scribe realtime) — required for voice answers
-ELEVENLABS_API_KEY=sk_...
-# Optional (defaults shown):
-# OPENROUTER_MODEL=poolside/laguna-s-2.1:free
-# OPENROUTER_MODELS=model-a,model-b  (fallback list)
-# OPENROUTER_API_URL=https://openrouter.ai/api/v1/chat/completions
-# Optional production HTTP settings
-CORS_ORIGINS=https://app.example.com
-TRUSTED_HOSTS=api.example.com
-MAX_PDF_UPLOAD_BYTES=26214400
-```
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Neon PostgreSQL connection string (`src/db/connection.py`) |
+| `DRAGONFLY_URL` | Cache URL; embed any password here (`src/cache/dragonfly.py`) |
+| `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | S3-compatible object storage for PDFs (`src/services/object_storage.py`) |
+| `NEON_STORAGE_BUCKET` | Bucket name, defaults to `materials` |
+| `OPENROUTER_API_KEY` | LLM — question generation + scoring |
+| `ELEVENLABS_API_KEY` | STT — voice answers |
+| `CORS_ORIGINS` | Comma-separated allowed origins, e.g. `http://localhost:5173` |
+
+> **`CORS_ORIGINS` is easy to miss and breaks the frontend silently.** If it is unset or empty the CORS middleware is never registered (`src/api/app.py:92`), so every browser request from the React app is blocked — you get a CORS error in DevTools rather than a network failure, and preflight `OPTIONS` calls return `405`.
+
+Optional (defaults in `.env.example`): `TRUSTED_HOSTS`, `OPENROUTER_API_URL`, `OPENROUTER_MODEL`, `OPENROUTER_MODELS`, `OPENROUTER_SITE_URL`, `OPENROUTER_APP_NAME`, `MAX_PDF_UPLOAD_BYTES`.
 
 ## Running
 
