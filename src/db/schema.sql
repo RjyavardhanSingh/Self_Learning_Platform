@@ -65,6 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_contexts_user_id ON contexts(user_id);
 
 CREATE TABLE IF NOT EXISTS concept_mastery (
   id TEXT PRIMARY KEY,
+  user_id TEXT,
   context_id TEXT NOT NULL,
   question_id TEXT NOT NULL,
   topic TEXT NOT NULL,
@@ -76,3 +77,4 @@ CREATE TABLE IF NOT EXISTS concept_mastery (
 );
 
 CREATE INDEX IF NOT EXISTS idx_concept_mastery_review ON concept_mastery(next_review_at);
+CREATE INDEX IF NOT EXISTS idx_concept_mastery_user_id ON concept_mastery(user_id);
