@@ -26,11 +26,13 @@ const steps = [
   { label: 'Results', path: '/results', icon: Trophy },
 ] as const
 
-/** Index of the furthest step the learner has reached, from the URL alone. */
+/**
+ * Index of the step the current URL belongs to, or -1 for unknown routes so
+ * nothing is falsely marked active on a 404.
+ */
 function useActiveStep() {
   const { pathname } = useLocation()
-  const found = steps.findIndex((step) => pathname.startsWith(step.path))
-  return found === -1 ? 0 : found
+  return steps.findIndex((step) => pathname.startsWith(step.path))
 }
 
 function Brand() {
