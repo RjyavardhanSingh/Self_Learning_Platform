@@ -93,6 +93,7 @@ export function WelcomePage() {
 
       <main id="main-content">
         <section className="mx-auto max-w-6xl px-4 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-20">
+          <p>I have thought the colour schema we will build it around wisperflow main website okay rajjo it is a rough sketch "don't quote me on ui"</p>
           <div className="max-w-3xl">
             <h1 className="text-balance text-[2.6rem] leading-[1.02] tracking-[-0.035em] sm:text-6xl">
               Turn what you study into what you{' '}
