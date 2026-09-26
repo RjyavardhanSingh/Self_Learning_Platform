@@ -25,6 +25,7 @@
     "react-router-dom": "^7.18.4",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "web": ".",
     "zod": "^4.6.5"
   },
   "devDependencies": {
