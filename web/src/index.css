@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
+/* Self-hosted variable fonts. Fontsource emits @font-face with
+   font-display: swap and per-subset unicode-ranges, so an English UI pulls
+   only the latin woff2 (~48 KB each) and nothing hits a third-party CDN. */
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/inter-tight/wght.css";
+
 @theme {
-  --font-sans: "Inter", "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  /* Body + UI. Inter's tnum axis drives every score and timer in the app. */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Display. Inter Tight is cut tighter, which is exactly what the negative
+     tracking on headings (tracking-[-0.04em]) is asking for. */
+  --font-display: "Inter Tight Variable", ui-sans-serif, system-ui, sans-serif;
   --radius-xl: 0.875rem;
   --radius-2xl: 1.125rem;
 }
@@ -21,6 +30,15 @@
 * {
   box-sizing: border-box;
   border-color: #e4e4e7;
+}
+
+/* Headings get the display cut globally, so no component needs to opt in. */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 
 html {

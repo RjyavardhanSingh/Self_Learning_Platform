@@ -33,16 +33,16 @@ const QuestionCard = memo(function QuestionCard({
   total: number
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+    <div className="rounded-2xl border border-zinc-200 bg-purple-400 p-5">
       <div className="flex items-start justify-between gap-4">
-        <p className="tabular text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+        <p className="tabular text-xs font-bold uppercase tracking-[0.16em] text-black-500">
           Question {position} of {total}
         </p>
         {question.topic ? (
           <Badge className="shrink-0 normal-case tracking-normal">{question.topic}</Badge>
         ) : null}
       </div>
-      <p className="text-pretty mt-3 text-lg font-medium leading-8 text-zinc-900">
+      <p className="text-pretty mt-3 text-lg font-medium leading-8 text-black-900">
         {question.text}
       </p>
       {question.previous_attempt ? (

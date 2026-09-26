@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 
@@ -95,10 +94,9 @@ export function WelcomePage() {
       <main id="main-content">
         <section className="mx-auto max-w-6xl px-4 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-20">
           <div className="max-w-3xl">
-            <Badge className="border-zinc-300 bg-white text-zinc-700">A Calmer Way to Learn</Badge>
             <h1 className="text-balance mt-6 text-4xl font-semibold leading-[1.05] tracking-[-0.05em] sm:text-6xl">
               Turn what you study into what you{' '}
-              <span className="text-zinc-400">remember.</span>
+              <span className="text-purple-500">remember.</span>
             </h1>
             <p className="text-pretty mt-5 max-w-xl text-base leading-7 text-zinc-500 sm:text-lg sm:leading-8">
               Bring your material, say what you need to achieve, then practice answering out loud.
