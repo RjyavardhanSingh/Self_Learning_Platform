@@ -199,7 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
 
         <main id="main-content" className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-line/80 bg-white/90 px-4 backdrop-blur sm:px-6 lg:hidden">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-line/80 bg-canvas/90 px-4 backdrop-blur sm:px-6 lg:hidden">
             <Brand />
             <Button
               variant="secondary"

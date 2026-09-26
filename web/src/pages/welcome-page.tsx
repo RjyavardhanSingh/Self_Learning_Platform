@@ -92,17 +92,11 @@ export function WelcomePage() {
       </header>
 
       <main id="main-content">
-        <section className="relative isolate mx-auto max-w-6xl px-4 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-24">
-          {/* Single soft accent wash, borrowed from the reference hero. One
-              colour, low opacity, decorative only. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-[380px] w-[min(90vw,860px)] -translate-x-1/2 rounded-full bg-accent-tint opacity-80 blur-3xl"
-          />
+        <section className="mx-auto max-w-6xl px-4 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-20">
           <div className="max-w-3xl">
             <h1 className="text-balance text-[2.6rem] leading-[1.02] tracking-[-0.035em] sm:text-6xl">
               Turn what you study into what you{' '}
-              <span className="text-purple-400 font-semibold">remember.</span>
+              <span className="text-accent-ink">remember.</span>
             </h1>
             <p className="text-pretty mt-5 max-w-xl text-base leading-7 text-ink-muted sm:text-lg sm:leading-8">
               Bring your material, say what you need to achieve, then practice answering out loud.
@@ -126,7 +120,7 @@ export function WelcomePage() {
           </div>
         </section>
 
-        <section id="how-it-works" className="scroll-mt-20 border-y border-line bg-surface">
+        <section id="how-it-works" className="scroll-mt-20 border-y border-line">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-20">
             <div className="max-w-xl">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink-muted">How It Works</p>
@@ -200,7 +194,7 @@ export function WelcomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-line bg-surface">
+      <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <span>Recall · Learn out loud</span>
           <span>Focused practice for curious people.</span>
